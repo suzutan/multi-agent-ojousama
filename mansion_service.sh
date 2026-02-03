@@ -613,7 +613,7 @@ MANSION_EOF
     log_info "  └─ メイドに指示書を伝達中..."
     for i in {1..6}; do
         p=$((PANE_BASE + 1 + i))
-        tmux send-keys -t "servants:staff.${p}" "instructions/maid.md を読んで役割を理解せよ。汝はメイド${i}号である"
+        tmux send-keys -t "servants:staff.${p}" "instructions/maid.md を読んで役割を理解してください。あなたはメイド${i}号です"
         sleep 0.3
         tmux send-keys -t "servants:staff.${p}" Enter
         sleep 0.5

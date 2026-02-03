@@ -1,12 +1,12 @@
 <div align="center">
 
-# multi-agent-shogun
+# multi-agent-ojousama
 
-**Command your AI army like a feudal warlord.**
+**Command your AI army like a lady of the manor.**
 
-Run 8 Claude Code agents in parallel — orchestrated through a samurai-inspired hierarchy with zero coordination overhead.
+Run 8 Claude Code agents in parallel — orchestrated through a butler-maid hierarchy with zero coordination overhead.
 
-[![GitHub Stars](https://img.shields.io/github/stars/yohey-w/multi-agent-shogun?style=social)](https://github.com/yohey-w/multi-agent-shogun)
+[![GitHub Stars](https://img.shields.io/github/stars/yohey-w/multi-agent-ojousama?style=social)](https://github.com/yohey-w/multi-agent-ojousama)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Claude Code](https://img.shields.io/badge/Built_for-Claude_Code-blueviolet)](https://code.claude.com)
 [![Shell](https://img.shields.io/badge/Shell%2FBash-100%25-green)]()
@@ -16,24 +16,24 @@ Run 8 Claude Code agents in parallel — orchestrated through a samurai-inspired
 </div>
 
 <p align="center">
-  <img src="assets/screenshots/tmux_multiagent_9panes.png" alt="multi-agent-shogun: 9 panes running in parallel" width="800">
+  <img src="assets/screenshots/tmux_servants_9panes.png" alt="multi-agent-ojousama: 9 panes running in parallel" width="800">
 </p>
 
-<p align="center"><i>One Karo (manager) coordinating 8 Ashigaru (workers) — real session, no mock data.</i></p>
+<p align="center"><i>One Head Maid (manager) coordinating 8 Maid (workers) — real session, no mock data.</i></p>
 
 ---
 
-Give a single command. The **Shogun** (general) delegates to the **Karo** (steward), who distributes work across up to **8 Ashigaru** (foot soldiers) — all running as independent Claude Code processes in tmux. Communication flows through YAML files and tmux `send-keys`, meaning **zero extra API calls** for agent coordination.
+Give a single command. The **Butler** (head butler) delegates to the **Head Maid** (head maid), who distributes work across up to **8 Maid** (maids) — all running as independent Claude Code processes in tmux. Communication flows through YAML files and tmux `send-keys`, meaning **zero extra API calls** for agent coordination.
 
 <!-- TODO: add demo.gif — record with asciinema or vhs -->
 
-## Why Shogun?
+## Why Butler?
 
-Most multi-agent frameworks burn API tokens on coordination. Shogun doesn't.
+Most multi-agent frameworks burn API tokens on coordination. Butler doesn't.
 
-| | Claude Code `Task` tool | LangGraph | CrewAI | **multi-agent-shogun** |
+| | Claude Code `Task` tool | LangGraph | CrewAI | **multi-agent-ojousama** |
 |---|---|---|---|---|
-| **Architecture** | Subagents inside one process | Graph-based state machine | Role-based agents | Feudal hierarchy via tmux |
+| **Architecture** | Subagents inside one process | Graph-based state machine | Role-based agents | Manor hierarchy via tmux |
 | **Parallelism** | Sequential (one at a time) | Parallel nodes (v0.2+) | Limited | **8 independent agents** |
 | **Coordination cost** | API calls per Task | API + infra (Postgres/Redis) | API + CrewAI platform | **Zero** (YAML + tmux) |
 | **Observability** | Claude logs only | LangSmith integration | OpenTelemetry | **Live tmux panes** + dashboard |
@@ -46,7 +46,7 @@ Most multi-agent frameworks burn API tokens on coordination. Shogun doesn't.
 
 **Full transparency** — Every agent runs in a visible tmux pane. Every instruction, report, and decision is a plain YAML file you can read, diff, and version-control. No black boxes.
 
-**Battle-tested hierarchy** — The Shogun → Karo → Ashigaru chain of command prevents conflicts by design: clear ownership, dedicated files per agent, event-driven communication, no polling.
+**Battle-tested hierarchy** — The Butler → Head Maid → Maid chain of command prevents conflicts by design: clear ownership, dedicated files per agent, event-driven communication, no polling.
 
 ---
 
@@ -54,10 +54,10 @@ Most multi-agent frameworks burn API tokens on coordination. Shogun doesn't.
 
 This is the feature no other framework has.
 
-As Ashigaru execute tasks, they **automatically identify reusable patterns** and propose them as skill candidates. The Karo aggregates these proposals in `dashboard.md`, and you — the Lord — decide what gets promoted to a permanent skill.
+As Maid execute tasks, they **automatically identify reusable patterns** and propose them as skill candidates. The Head Maid aggregates these proposals in `dashboard.md`, and you — the Lord — decide what gets promoted to a permanent skill.
 
 ```
-Ashigaru finishes a task
+Maid finishes a task
     ↓
 Notices: "I've done this pattern 3 times across different projects"
     ↓
@@ -82,19 +82,19 @@ Skills grow organically from real work — not from a predefined template librar
              │
              ▼  Give orders
       ┌─────────────┐
-      │   SHOGUN    │  Receives your command, plans strategy
-      │    (将軍)    │  Session: shogun
+      │   BUTLER    │  Receives your command, plans strategy
+      │   (執事長)   │  Session: lady
       └──────┬──────┘
              │  YAML + send-keys
       ┌──────▼──────┐
-      │    KARO     │  Breaks tasks down, assigns to workers
-      │    (家老)    │  Session: multiagent, pane 0
+      │  HEAD_MAID  │  Breaks tasks down, assigns to workers
+      │ (メイド長)   │  Session: servants, pane 0
       └──────┬──────┘
              │  YAML + send-keys
     ┌─┬─┬─┬─┴─┬─┬─┬─┐
     │1│2│3│4│5│6│7│8│  Execute in parallel
     └─┴─┴─┴─┴─┴─┴─┴─┘
-         ASHIGARU (足軽)
+         MAID (メイド)
          Panes 1-8
 ```
 
@@ -120,7 +120,7 @@ After `/clear`, an agent recovers in **~2,000 tokens** by reading Memory MCP + i
 
 Agents can be deployed in different **formations** (陣形 / *jindate*) depending on the task:
 
-| Formation | Ashigaru 1–4 | Ashigaru 5–8 | Best for |
+| Formation | Maid 1–4 | Maid 5–8 | Best for |
 |-----------|-------------|-------------|----------|
 | **Normal** (default) | Sonnet | Opus | Everyday tasks — cost-efficient |
 | **Battle** (`-k` flag) | Opus | Opus | Critical tasks — maximum capability |
@@ -130,7 +130,7 @@ Agents can be deployed in different **formations** (陣形 / *jindate*) dependin
 ./shutsujin_departure.sh -k       # Battle formation (all Opus)
 ```
 
-The Karo can also promote individual Ashigaru mid-session with `/model opus` when a specific task demands it.
+The Head Maid can also promote individual Maid mid-session with `/model opus` when a specific task demands it.
 
 ---
 
@@ -140,13 +140,13 @@ The Karo can also promote individual Ashigaru mid-session with `/model opus` whe
 
 ```bash
 # 1. Clone
-git clone https://github.com/yohey-w/multi-agent-shogun.git C:\tools\multi-agent-shogun
+git clone https://github.com/yohey-w/multi-agent-ojousama.git C:\tools\multi-agent-ojousama
 
 # 2. Run installer (right-click → Run as Administrator)
 #    → install.bat handles WSL2 + Ubuntu setup automatically
 
 # 3. In Ubuntu terminal:
-cd /mnt/c/tools/multi-agent-shogun
+cd /mnt/c/tools/multi-agent-ojousama
 ./first_setup.sh          # One-time: installs tmux, Node.js, Claude Code CLI
 ./shutsujin_departure.sh  # Deploy your army
 ```
@@ -155,8 +155,8 @@ cd /mnt/c/tools/multi-agent-shogun
 
 ```bash
 # 1. Clone
-git clone https://github.com/yohey-w/multi-agent-shogun.git ~/multi-agent-shogun
-cd ~/multi-agent-shogun && chmod +x *.sh
+git clone https://github.com/yohey-w/multi-agent-ojousama.git ~/multi-agent-ojousama
+cd ~/multi-agent-ojousama && chmod +x *.sh
 
 # 2. Setup + Deploy
 ./first_setup.sh          # One-time: installs dependencies
@@ -166,18 +166,18 @@ cd ~/multi-agent-shogun && chmod +x *.sh
 ### Daily startup
 
 ```bash
-cd /path/to/multi-agent-shogun
+cd /path/to/multi-agent-ojousama
 ./shutsujin_departure.sh
-tmux attach-session -t shogun   # Connect and give orders
+tmux attach-session -t lady   # Connect and give orders
 ```
 
 <details>
 <summary><b>Convenient aliases</b> (added by first_setup.sh)</summary>
 
 ```bash
-alias csst='cd /mnt/c/tools/multi-agent-shogun && ./shutsujin_departure.sh'
-alias css='tmux attach-session -t shogun'
-alias csm='tmux attach-session -t multiagent'
+alias csst='cd /mnt/c/tools/multi-agent-ojousama && ./shutsujin_departure.sh'
+alias css='tmux attach-session -t lady'
+alias csm='tmux attach-session -t servants'
 ```
 
 </details>
@@ -192,33 +192,33 @@ alias csm='tmux attach-session -t multiagent'
 You: "Research the top 5 MCP servers and create a comparison table"
 ```
 
-### 2. Shogun delegates instantly
+### 2. Butler delegates instantly
 
-The Shogun writes the task to `queue/shogun_to_karo.yaml` and wakes the Karo. Control returns to you immediately — no waiting.
+The Butler writes the task to `queue/lady_to_head_maid.yaml` and wakes the Head Maid. Control returns to you immediately — no waiting.
 
-### 3. Karo distributes
+### 3. Head Maid distributes
 
-The Karo breaks the task into subtasks and assigns each to an Ashigaru:
+The Head Maid breaks the task into subtasks and assigns each to an Maid:
 
 | Worker | Assignment |
 |--------|-----------|
-| Ashigaru 1 | Research Notion MCP |
-| Ashigaru 2 | Research GitHub MCP |
-| Ashigaru 3 | Research Playwright MCP |
-| Ashigaru 4 | Research Memory MCP |
-| Ashigaru 5 | Research Sequential Thinking MCP |
+| Maid 1 | Research Notion MCP |
+| Maid 2 | Research GitHub MCP |
+| Maid 3 | Research Playwright MCP |
+| Maid 4 | Research Memory MCP |
+| Maid 5 | Research Sequential Thinking MCP |
 
 ### 4. Parallel execution
 
-All 5 Ashigaru research simultaneously. You can watch them work in real time:
+All 5 Maid research simultaneously. You can watch them work in real time:
 
 <p align="center">
-  <img src="assets/screenshots/tmux_multiagent_working.png" alt="Ashigaru agents working in parallel" width="700">
+  <img src="assets/screenshots/tmux_servants_working.png" alt="Maid agents working in parallel" width="700">
 </p>
 
 ### 5. Results in dashboard
 
-Open `dashboard.md` to see aggregated results, skill candidates, and blockers — all maintained by the Karo.
+Open `dashboard.md` to see aggregated results, skill candidates, and blockers — all maintained by the Head Maid.
 
 ---
 
@@ -257,16 +257,16 @@ language: en   # Samurai Japanese + English translation
 
 | Agent | Default Model | Thinking |
 |-------|--------------|----------|
-| Shogun | Opus | Disabled (delegation doesn't need deep reasoning) |
-| Karo | Opus | Enabled |
-| Ashigaru 1–4 | Sonnet | Enabled |
-| Ashigaru 5–8 | Opus | Enabled |
+| Butler | Opus | Disabled (delegation doesn't need deep reasoning) |
+| Head Maid | Opus | Enabled |
+| Maid 1–4 | Sonnet | Enabled |
+| Maid 5–8 | Opus | Enabled |
 
 ### MCP servers
 
 ```bash
 # Memory (auto-configured by first_setup.sh)
-claude mcp add memory -e MEMORY_FILE_PATH="$PWD/memory/shogun_memory.jsonl" -- npx -y @modelcontextprotocol/server-memory
+claude mcp add memory -e MEMORY_FILE_PATH="$PWD/memory/lady_memory.jsonl" -- npx -y @modelcontextprotocol/server-memory
 
 # Notion
 claude mcp add notion -e NOTION_TOKEN=your_token -- npx -y @notionhq/notion-mcp-server
@@ -286,31 +286,31 @@ screenshot:
   path: "/mnt/c/Users/YourName/Pictures/Screenshots"
 ```
 
-Tell the Shogun "check the latest screenshot" and it reads your screen captures for visual context. (`Win+Shift+S` on Windows.)
+Tell the Butler "check the latest screenshot" and it reads your screen captures for visual context. (`Win+Shift+S` on Windows.)
 
 ---
 
 ## File Structure
 
 ```
-multi-agent-shogun/
+multi-agent-ojousama/
 ├── install.bat                # Windows first-time setup
 ├── first_setup.sh             # Linux/Mac first-time setup
 ├── shutsujin_departure.sh     # Daily deployment script
 │
 ├── instructions/              # Agent behavior definitions
-│   ├── shogun.md
-│   ├── karo.md
-│   └── ashigaru.md
+│   ├── lady.md
+│   ├── head_maid.md
+│   └── maid.md
 │
 ├── config/
 │   ├── settings.yaml          # Language, model, screenshot settings
 │   └── projects.yaml          # Project registry
 │
 ├── queue/                     # Communication (source of truth)
-│   ├── shogun_to_karo.yaml
-│   ├── tasks/ashigaru{1-8}.yaml
-│   └── reports/ashigaru{1-8}_report.yaml
+│   ├── lady_to_head_maid.yaml
+│   ├── tasks/maid{1-8}.yaml
+│   └── reports/maid{1-8}_report.yaml
 │
 ├── memory/                    # Memory MCP persistent storage
 ├── dashboard.md               # Human-readable status board
@@ -349,7 +349,7 @@ Don't use `css`/`csm` aliases inside an existing tmux session (causes nesting). 
 claude --model opus --dangerously-skip-permissions
 
 # Or from another pane:
-tmux respawn-pane -t shogun:0.0 -k 'claude --model opus --dangerously-skip-permissions'
+tmux respawn-pane -t lady:0.0 -k 'claude --model opus --dangerously-skip-permissions'
 ```
 
 </details>
@@ -358,7 +358,7 @@ tmux respawn-pane -t shogun:0.0 -k 'claude --model opus --dangerously-skip-permi
 <summary><b>Workers stuck?</b></summary>
 
 ```bash
-tmux attach-session -t multiagent
+tmux attach-session -t servants
 # Ctrl+B then 0-8 to switch panes
 ```
 
@@ -370,8 +370,8 @@ tmux attach-session -t multiagent
 
 | Command | Description |
 |---------|-------------|
-| `tmux attach -t shogun` | Connect to the Shogun |
-| `tmux attach -t multiagent` | Connect to workers |
+| `tmux attach -t lady` | Connect to the Butler |
+| `tmux attach -t servants` | Connect to workers |
 | `Ctrl+B` then `0`–`8` | Switch panes |
 | `Ctrl+B` then `d` | Detach (agents keep running) |
 
