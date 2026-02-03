@@ -155,36 +155,24 @@ else
 fi
 
 # ============================================================
-# STEP 3: tmux マウススクロール設定
+# STEP 3: プロジェクト専用 tmux 設定
 # ============================================================
-log_step "STEP 3: tmux マウススクロール設定"
+log_step "STEP 3: プロジェクト専用 tmux 設定"
 
-TMUX_CONF="$HOME/.tmux.conf"
-TMUX_MOUSE_SETTING="set -g mouse on"
+PROJECT_TMUX_CONF="$SCRIPT_DIR/.tmux.conf"
 
-if [ -f "$TMUX_CONF" ] && grep -qF "$TMUX_MOUSE_SETTING" "$TMUX_CONF" 2>/dev/null; then
-    log_info "tmux マウス設定は既に ~/.tmux.conf に存在します"
+if [ -f "$PROJECT_TMUX_CONF" ]; then
+    log_success "プロジェクト専用 tmux 設定ファイルが存在します: $PROJECT_TMUX_CONF"
 else
-    log_info "~/.tmux.conf に '$TMUX_MOUSE_SETTING' を追加中..."
-    echo "" >> "$TMUX_CONF"
-    echo "# マウススクロール有効化 (added by first_setup.sh)" >> "$TMUX_CONF"
-    echo "$TMUX_MOUSE_SETTING" >> "$TMUX_CONF"
-    log_success "tmux マウス設定を追加しました"
+    log_warn "プロジェクト専用 tmux 設定ファイルが見つかりません"
+    log_info "標準の .tmux.conf をコピーまたは手動で作成してください"
+    RESULTS+=("tmux 設定: 警告（設定ファイル未作成）")
 fi
 
-# tmux が起動中の場合は即反映
-if command -v tmux &> /dev/null && tmux list-sessions &> /dev/null; then
-    log_info "tmux が起動中のため、設定を即反映します..."
-    if tmux source-file "$TMUX_CONF" 2>/dev/null; then
-        log_success "tmux 設定を再読み込みしました"
-    else
-        log_warn "tmux 設定の再読み込みに失敗しました（手動で tmux source-file ~/.tmux.conf を実行してください）"
-    fi
-else
-    log_info "tmux は起動していないため、次回起動時に反映されます"
-fi
+log_info "注: グローバルな ~/.tmux.conf は変更されません"
+log_info "    このプロジェクトは専用の .tmux.conf を使用します"
 
-RESULTS+=("tmux マウス設定: OK")
+RESULTS+=("tmux 設定: OK（プロジェクト専用）")
 
 # ============================================================
 # STEP 4: Node.js チェック
@@ -383,9 +371,9 @@ if [ ! -f "$SCRIPT_DIR/config/settings.yaml" ]; then
 language: ja
 
 # シェル設定
-# bash: bash用プロンプト（デフォルト）
-# zsh: zsh用プロンプト
-shell: bash
+# zsh: zsh用プロンプト（デフォルト）
+# bash: bash用プロンプト
+shell: zsh
 
 # スキル設定
 skill:
