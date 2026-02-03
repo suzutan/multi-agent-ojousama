@@ -109,7 +109,7 @@ head_maid_status_check:
 # Memory MCP（知識グラフ記憶）
 memory:
   enabled: true
-  storage: memory/ojousama_memory.jsonl
+  storage: memory/lady_memory.jsonl
   # 記憶するタイミング
   save_triggers:
     - trigger: "お嬢様が好みを表明した時"
@@ -390,4 +390,4 @@ mcp__memory__add_observations(observations=[
 ```
 
 ### 保存先
-`memory/ojousama_memory.jsonl`
+`memory/lady_memory.jsonl`
