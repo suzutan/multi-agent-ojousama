@@ -1,7 +1,8 @@
 # multi-agent-ojousama システム構成
 
-> **Version**: 2.0
-> **Last Updated**: 2026-02-02
+> **Version**: 2.1
+> **Last Updated**: 2026-02-04
+> **Changelog**: エスカレーションプロトコル追加（判断依頼のルール明確化）
 
 ## 概要
 multi-agent-ojousamaは、Claude Code + tmux を使ったマルチエージェント並列開発基盤である。
@@ -245,6 +246,83 @@ Butler（執事長）
 - **秘書 → 執事長**: dashboard.md 更新のみ。send-keys **禁止**（お嬢様の入力中の割り込み防止）
 - **メイド長 → 執事長**: dashboard.md 更新のみ。send-keys **禁止**（お嬢様の入力中の割り込み防止）
 
+### エスカレーションプロトコル（判断依頼のルール）
+
+**原則**: プロンプト待ちを避け、上位者に判断を仰ぐ
+
+Maid や Inspector が判断に迷った場合、**直接プロンプト待ちにせず**、以下のエスカレーションルールに従え：
+
+```
+判断が必要
+  │
+  ▼ レベル1: 自分で判断できるか？
+  │   YES → 即座に判断して作業継続
+  │   NO  → レベル2へ
+  │
+  ▼ レベル2: Secretary（秘書）に報告
+  │   報告YAML記入 + send-keys
+  │   秘書が判断できる → 秘書が判断
+  │   秘書が判断できない → レベル3へ
+  │
+  ▼ レベル3: Head Maid（メイド長）に報告
+  │   秘書経由で報告 + send-keys
+  │   メイド長が判断できる → メイド長が判断
+  │   メイド長が判断できない → レベル4へ
+  │
+  ▼ レベル4: Butler（執事長）に報告
+  │   メイド長経由で報告（send-keys禁止、dashboard.md経由）
+  │   執事長が判断できる → 執事長が判断
+  │   執事長が判断できない → レベル5へ
+  │
+  ▼ レベル5: Lady（お嬢様）に報告
+      執事長が dashboard.md の「🚨要対応」に記載
+      お嬢様の判断を待つ
+```
+
+#### 判断権限マトリックス
+
+| 判断事項 | Maid/Inspector | Secretary | Head Maid | Butler | Lady |
+|---------|---------------|-----------|-----------|--------|------|
+| タスク実行方法の選択 | ✅ | - | ✅ | ✅ | ✅ |
+| スケジュール調整 | - | ✅ | ✅ | ✅ | ✅ |
+| タスク分解・担当割り当て | - | - | ✅ | ✅ | ✅ |
+| 優先順位変更 | - | - | △ | ✅ | ✅ |
+| リソース配分 | - | - | △ | ✅ | ✅ |
+| 技術選択 | △ | - | ✅ | ✅ | ✅ |
+| 方針変更 | - | - | - | △ | ✅ |
+| 最終意思決定 | - | - | - | - | ✅ |
+
+- ✅ = 単独で判断可能
+- △ = 軽微なものは判断可、重要なものは上位者へ
+- \- = 判断権限なし、上位者へエスカレーション
+
+#### 禁止事項
+
+- ❌ **プロンプト待ちで作業停止**: 判断に迷ったら必ずエスカレーション
+- ❌ **階層飛ばし**: Maid が直接 Butler に報告（Secretary → Head Maid を経由せよ）
+- ❌ **判断の丸投げ**: 状況説明と選択肢を示さずに「どうしますか？」と聞くな
+
+#### エスカレーション時の報告フォーマット
+
+```yaml
+escalation:
+  from: maid1
+  level: 2  # Secretary
+  issue: "subtask_006のレビューをいつ実施するか判断が必要"
+  context: "Maid4・Maid5の完了待ち。現時点でMaid1-3の成果物は揃っている"
+  options:
+    - id: 1
+      description: "Maid4・Maid5の完了を待つ（推奨）"
+      pros: "全体像を把握してレビュー可能"
+      cons: "待機時間が発生"
+    - id: 2
+      description: "現時点の成果物を先行レビュー"
+      pros: "即座に作業開始"
+      cons: "後で再レビューが必要"
+  recommendation: 1
+  timestamp: "2026-02-04T02:27:31"
+```
+
 ### 秘書の役割（Secretary）
 
 秘書は**連絡調整の専門家**であり、メイド長の過労死を防ぐために新設されたロール。
@@ -328,7 +406,7 @@ api_provider: anthropic
   - @model_name: Opus（anthropic）/ Sonnet（bedrock）
 - Pane 1: secretary（秘書）
   - @agent_id: secretary
-  - @model_name: Haiku（anthropic）/ Sonnet（bedrock）
+  - @model_name: Haiku（anthropic）/ Haiku（bedrock）
 - Pane 2-7: maid1-6（メイド）
   - @agent_id: maid1-6
   - @model_name: Sonnet
@@ -344,7 +422,7 @@ api_provider: anthropic
 #{pane_index} #{@agent_id} (#{@model_name})
 ```
 
-例: `0 head_maid (Opus)`
+例: `0 head_maid (Sonnet)`
 
 この表示はClaude Codeがペインタイトルを上書きしても消えない。
 
