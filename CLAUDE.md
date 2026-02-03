@@ -299,24 +299,42 @@ projects/<id>.yaml          # 各プロジェクトの詳細（クライアン�
 
 ## tmuxセッション構成
 
+### API Provider によるモデル選択
+
+config/settings.yaml の `api_provider` でモデル構成が切り替わる：
+
+```yaml
+# bedrock: AWS Bedrock API（全員Sonnet）
+# anthropic: Anthropic API（shogun方式: 一部Opus）
+api_provider: anthropic
+```
+
+| ロール | anthropic | bedrock |
+|--------|-----------|---------|
+| 執事長（Butler） | Opus | Sonnet |
+| メイド長（Head Maid） | Opus | Sonnet |
+| 秘書（Secretary） | Haiku | Sonnet |
+| メイド（Maid1-6） | Sonnet | Sonnet |
+| 監督官（Inspector） | Opus | Sonnet |
+
 ### ladyセッション（1ペイン）
 - Pane 0: BUTLER（執事長）
   - @agent_id: butler
-  - @model_name: Opus
+  - @model_name: Opus（anthropic）/ Sonnet（bedrock）
 
 ### servantsセッション（9ペイン）
 - Pane 0: head_maid（メイド長）
   - @agent_id: head_maid
-  - @model_name: Opus
+  - @model_name: Opus（anthropic）/ Sonnet（bedrock）
 - Pane 1: secretary（秘書）
   - @agent_id: secretary
-  - @model_name: Haiku
+  - @model_name: Haiku（anthropic）/ Sonnet（bedrock）
 - Pane 2-7: maid1-6（メイド）
   - @agent_id: maid1-6
   - @model_name: Sonnet
 - Pane 8: inspector（監督官）
   - @agent_id: inspector
-  - @model_name: Opus
+  - @model_name: Opus（anthropic）/ Sonnet（bedrock）
 
 ### ペインボーダー表示
 
