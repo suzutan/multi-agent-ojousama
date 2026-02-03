@@ -32,6 +32,10 @@ if [ -f "./config/settings.yaml" ]; then
     API_PROVIDER=$(grep "^api_provider:" ./config/settings.yaml 2>/dev/null | awk '{print $2}' || echo "anthropic")
 fi
 
+# モデル設定（環境変数がない場合のデフォルト値: sonnet, haiku）
+MODEL_SONNET="${ANTHROPIC_MODEL_SONNET:-sonnet}"
+MODEL_HAIKU="${ANTHROPIC_MODEL_HAIKU:-haiku}"
+
 # 色付きログ関数（貴族邸宅風）
 log_info() {
     echo -e "\033[1;33m【報】\033[0m $1"
@@ -513,10 +517,10 @@ PANE_COLORS=("dark_green" "yellow" "cyan" "cyan" "cyan" "cyan" "cyan" "cyan" "or
 # エージェントID設定（tmux変数として保存）
 AGENT_IDS=("head_maid" "secretary" "maid1" "maid2" "maid3" "maid4" "maid5" "maid6" "inspector")
 # モデル名設定（API Provider に応じて切り替え）
-# bedrock: 全員Sonnet
+# bedrock: Head Maid/Maid/Inspector=Sonnet, Secretary=Haiku
 # anthropic: shogun方式（Head Maid: Opus, Secretary: Haiku, Maid: Sonnet, Inspector: Opus）
 if [ "$API_PROVIDER" = "bedrock" ]; then
-    MODEL_NAMES=("Sonnet" "Sonnet" "Sonnet" "Sonnet" "Sonnet" "Sonnet" "Sonnet" "Sonnet" "Sonnet")
+    MODEL_NAMES=("Sonnet" "Haiku" "Sonnet" "Sonnet" "Sonnet" "Sonnet" "Sonnet" "Sonnet" "Sonnet")
 else
     MODEL_NAMES=("Opus" "Haiku" "Sonnet" "Sonnet" "Sonnet" "Sonnet" "Sonnet" "Sonnet" "Opus")
 fi
@@ -555,13 +559,14 @@ if [ "$SETUP_ONLY" = false ]; then
 
     # API Provider に応じてモデルを決定
     if [ "$API_PROVIDER" = "bedrock" ]; then
-        BUTLER_CLI_MODEL="sonnet"
-        HEAD_MAID_CLI_MODEL="sonnet"
-        SECRETARY_CLI_MODEL="sonnet"
-        MAID_CLI_MODEL="sonnet"
-        INSPECTOR_CLI_MODEL="sonnet"
+        # bedrock: 環境変数から完全なモデルIDを使用
+        BUTLER_CLI_MODEL="$MODEL_SONNET"
+        HEAD_MAID_CLI_MODEL="$MODEL_SONNET"
+        SECRETARY_CLI_MODEL="$MODEL_HAIKU"
+        MAID_CLI_MODEL="$MODEL_SONNET"
+        INSPECTOR_CLI_MODEL="$MODEL_SONNET"
     else
-        # anthropic: shogun方式
+        # anthropic: shogun方式（エイリアス使用）
         BUTLER_CLI_MODEL="opus"
         HEAD_MAID_CLI_MODEL="opus"
         SECRETARY_CLI_MODEL="haiku"
@@ -572,7 +577,7 @@ if [ "$SETUP_ONLY" = false ]; then
     # 執事長
     tmux send-keys -t lady:main "claude --model $BUTLER_CLI_MODEL --dangerously-skip-permissions"
     tmux send-keys -t lady:main Enter
-    log_info "  └─ 執事長（${BUTLER_CLI_MODEL^}）、召喚完了"
+    log_info "  └─ 執事長（${BUTLER_CLI_MODEL}）、召喚完了"
 
     # 少し待機（安定のため）
     sleep 1
@@ -581,13 +586,13 @@ if [ "$SETUP_ONLY" = false ]; then
     p=$((PANE_BASE + 0))
     tmux send-keys -t "servants:staff.${p}" "claude --model $HEAD_MAID_CLI_MODEL --dangerously-skip-permissions"
     tmux send-keys -t "servants:staff.${p}" Enter
-    log_info "  └─ メイド長（${HEAD_MAID_CLI_MODEL^}）、召喚完了"
+    log_info "  └─ メイド長（${HEAD_MAID_CLI_MODEL}）、召喚完了"
 
     # Secretary
     p=$((PANE_BASE + 1))
     tmux send-keys -t "servants:staff.${p}" "claude --model $SECRETARY_CLI_MODEL --dangerously-skip-permissions"
     tmux send-keys -t "servants:staff.${p}" Enter
-    log_info "  └─ 秘書（${SECRETARY_CLI_MODEL^}）、召喚完了"
+    log_info "  └─ 秘書（${SECRETARY_CLI_MODEL}）、召喚完了"
 
     # Maid1-6
     for i in {2..7}; do
@@ -595,13 +600,13 @@ if [ "$SETUP_ONLY" = false ]; then
         tmux send-keys -t "servants:staff.${p}" "claude --model $MAID_CLI_MODEL --dangerously-skip-permissions"
         tmux send-keys -t "servants:staff.${p}" Enter
     done
-    log_info "  └─ メイド1-6（${MAID_CLI_MODEL^}）、召喚完了"
+    log_info "  └─ メイド1-6（${MAID_CLI_MODEL}）、召喚完了"
 
     # Inspector
     p=$((PANE_BASE + 8))
     tmux send-keys -t "servants:staff.${p}" "claude --model $INSPECTOR_CLI_MODEL --dangerously-skip-permissions"
     tmux send-keys -t "servants:staff.${p}" Enter
-    log_info "  └─ 監督官（${INSPECTOR_CLI_MODEL^}）、召喚完了"
+    log_info "  └─ 監督官（${INSPECTOR_CLI_MODEL}）、召喚完了"
 
     log_success "✅ 全員 Claude Code 起動完了"
     echo ""
