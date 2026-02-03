@@ -37,6 +37,7 @@ config/projects.yaml
 status/
 config/settings.yaml
 logs/
+scripts/
 
 # Project details (contains client/confidential info)
 projects/
