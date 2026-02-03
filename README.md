@@ -78,7 +78,7 @@ Skills grow organically from real work — not from a predefined template librar
 ## Architecture
 
 ```
-        You (上様 / The Lord)
+        You (お嬢様 / The Lady)
              │
              ▼  Give orders
       ┌─────────────┐
@@ -249,8 +249,8 @@ projects:
 
 ```yaml
 # config/settings.yaml
-language: ja   # Samurai Japanese only
-language: en   # Samurai Japanese + English translation
+language: ja   # Manor-style Japanese only
+language: en   # Manor-style Japanese + English translation
 ```
 
 ### Model assignment

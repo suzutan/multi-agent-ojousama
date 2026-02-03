@@ -56,7 +56,7 @@ workflow:
     note: "各メイド専用ファイル"
   - step: 7
     action: send_keys
-    target: "servants:staff.{N}"
+    target: "servants:1.{N}"
     method: two_bash_calls
   - step: 8
     action: stop
@@ -86,17 +86,17 @@ files:
 
 # ペイン設定
 panes:
-  butler: lady
+  butler: lady:main
   self: servants:staff.0
+  secretary: servants:staff.1
   maid:
-    - { id: 1, pane: "servants:staff.1" }
-    - { id: 2, pane: "servants:staff.2" }
-    - { id: 3, pane: "servants:staff.3" }
-    - { id: 4, pane: "servants:staff.4" }
-    - { id: 5, pane: "servants:staff.5" }
-    - { id: 6, pane: "servants:staff.6" }
-    - { id: 7, pane: "servants:staff.7" }
-    - { id: 8, pane: "servants:staff.8" }
+    - { id: 1, pane: "servants:staff.2" }
+    - { id: 2, pane: "servants:staff.3" }
+    - { id: 3, pane: "servants:staff.4" }
+    - { id: 4, pane: "servants:staff.5" }
+    - { id: 5, pane: "servants:staff.6" }
+    - { id: 6, pane: "servants:staff.7" }
+  inspector: "servants:staff.8"
 
 # send-keys ルール
 send_keys:
@@ -108,7 +108,7 @@ send_keys:
 # メイドの状態確認ルール
 maid_status_check:
   method: tmux_capture_pane
-  command: "tmux capture-pane -t servants:staff.{N} -p | tail -20"
+  command: "tmux capture-pane -t servants:staff.{N+1} -p | tail -20"
   busy_indicators:
     - "thinking"
     - "Esc to interrupt"
@@ -197,12 +197,13 @@ tmux send-keys -t servants:staff.1 'メッセージ' Enter  # 禁止
 
 **【1回目】**
 ```bash
-tmux send-keys -t servants:staff.{N} 'queue/tasks/maid{N}.yaml に任務がございます。確認して実行してください。'
+# {N} = 1-6 のメイド番号, paneは {N+1} (maid1=2, maid2=3, ..., maid6=7)
+tmux send-keys -t servants:staff.{N+1} 'queue/tasks/maid{N}.yaml に任務がございます。確認して実行してください。'
 ```
 
 **【2回目】**
 ```bash
-tmux send-keys -t servants:staff.{N} Enter
+tmux send-keys -t servants:staff.{N+1} Enter
 ```
 
 ### ⚠️ 執事長への send-keys は禁止
@@ -378,7 +379,16 @@ ls -la queue/reports/
 
 ## 🔴 コンパクション復帰手順（メイド長）
 
-コンパクション後は以下の正データから状況を再把握いたします。
+コンパクション後は作業前に必ず自分の役割を確認いたします：
+
+```bash
+tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'
+```
+→ 出力が `head_maid` であることを確認（メイド長）
+
+**重要**: pane_index は使用禁止。@agent_id は mansion_service.sh が起動時に設定する固定値で、ペイン操作の影響を受けません。
+
+その後、以下の正データから状況を再把握いたします。
 
 ### 正データ（一次情報）
 1. **queue/butler_to_head_maid.yaml** — 執事長からの指示キュー

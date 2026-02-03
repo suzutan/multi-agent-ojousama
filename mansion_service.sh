@@ -439,8 +439,15 @@ fi
 
 # 執事長ペインはウィンドウ名 "main" で指定（base-index 1 環境でも動く）
 BUTLER_PROMPT=$(generate_prompt "Butler" "dark_magenta" "$SHELL_SETTING")
+tmux select-pane -t lady:main -T "Butler"
+tmux set-option -p -t lady:main @agent_id "butler"
+tmux set-option -p -t lady:main @model_name "Sonnet"
 tmux send-keys -t lady:main "cd \"$(pwd)\" && export PS1='${BUTLER_PROMPT}' && clear" Enter
 tmux select-pane -t lady:main -P 'bg=#002b36'  # 執事長の Solarized Dark
+
+# pane-border-format でモデル名を常時表示
+tmux set-option -t lady -w pane-border-status top
+tmux set-option -t lady -w pane-border-format '#{pane_index} #{@agent_id} (#{?#{==:#{@model_name},},unknown,#{@model_name}})'
 
 log_success "  └─ 執事長の執務室、構築完了"
 echo ""
@@ -477,32 +484,40 @@ tmux split-window -h -t "servants:staff"
 tmux split-window -h -t "servants:staff"
 
 # 各列を3行に分割
-# 左列（pane 0を3つに分割）
 tmux select-pane -t "servants:staff.${PANE_BASE}"
-tmux split-window -v -t "servants:staff.${PANE_BASE}"
-tmux split-window -v -t "servants:staff.${PANE_BASE}"
+tmux split-window -v
+tmux split-window -v
 
-# 中列（pane 1を3つに分割）
-tmux select-pane -t "servants:staff.$((PANE_BASE+1))"
-tmux split-window -v -t "servants:staff.$((PANE_BASE+1))"
-tmux split-window -v -t "servants:staff.$((PANE_BASE+1))"
+tmux select-pane -t "servants:staff.$((PANE_BASE+3))"
+tmux split-window -v
+tmux split-window -v
 
-# 右列（pane 2を3つに分割）
-tmux select-pane -t "servants:staff.$((PANE_BASE+2))"
-tmux split-window -v -t "servants:staff.$((PANE_BASE+2))"
-tmux split-window -v -t "servants:staff.$((PANE_BASE+2))"
+tmux select-pane -t "servants:staff.$((PANE_BASE+6))"
+tmux split-window -v
+tmux split-window -v
 
 # ペインタイトル設定（0: Head Maid, 1: Secretary, 2-7: Maid1-6, 8: Inspector）
 PANE_TITLES=("Head Maid" "Secretary" "Maid1" "Maid2" "Maid3" "Maid4" "Maid5" "Maid6" "Inspector")
 # 色設定（Head Maid: 濃緑, Secretary: 黄色, Maid: 水色, Inspector: オレンジ）
 PANE_COLORS=("dark_green" "yellow" "cyan" "cyan" "cyan" "cyan" "cyan" "cyan" "orange")
+# エージェントID設定（tmux変数として保存）
+AGENT_IDS=("head_maid" "secretary" "maid1" "maid2" "maid3" "maid4" "maid5" "maid6" "inspector")
+# モデル名設定（pane-border-format で常時表示するため）
+MODEL_NAMES=("Sonnet" "Sonnet" "Sonnet" "Sonnet" "Sonnet" "Sonnet" "Sonnet" "Sonnet" "Sonnet")
 
 for i in {0..8}; do
     p=$((PANE_BASE + i))
-    tmux select-pane -t "servants:staff.${p}" -T "${PANE_TITLES[$i]}"
-    PROMPT_STR=$(generate_prompt "${PANE_TITLES[$i]}" "${PANE_COLORS[$i]}" "$SHELL_SETTING")
+    pane_title="${PANE_TITLES[$i]}"
+    tmux select-pane -t "servants:staff.${p}" -T "${pane_title}"
+    tmux set-option -p -t "servants:staff.${p}" @agent_id "${AGENT_IDS[$i]}"
+    tmux set-option -p -t "servants:staff.${p}" @model_name "${MODEL_NAMES[$i]}"
+    PROMPT_STR=$(generate_prompt "${pane_title}" "${PANE_COLORS[$i]}" "$SHELL_SETTING")
     tmux send-keys -t "servants:staff.${p}" "cd \"$(pwd)\" && export PS1='${PROMPT_STR}' && clear" Enter
 done
+
+# pane-border-format でモデル名を常時表示（Claude Codeがペインタイトルを上書きしても消えない）
+tmux set-option -t servants -w pane-border-status top
+tmux set-option -t servants -w pane-border-format '#{pane_index} #{@agent_id} (#{?#{==:#{@model_name},},unknown,#{@model_name}})'
 
 log_success "  └─ 使用人の控室、構築完了"
 echo ""
@@ -522,20 +537,38 @@ if [ "$SETUP_ONLY" = false ]; then
     log_service "👔 全員に Claude Code を召喚中..."
 
     # 執事長
-    tmux send-keys -t lady:main "MAX_THINKING_TOKENS=0 claude --dangerously-skip-permissions"
+    tmux send-keys -t lady:main "claude --model sonnet --dangerously-skip-permissions"
     tmux send-keys -t lady:main Enter
     log_info "  └─ 執事長、召喚完了"
 
     # 少し待機（安定のため）
     sleep 1
 
-    # Head Maid + Secretary + Maid1-6 + Inspector（9ペイン）
-    for i in {0..8}; do
+    # Head Maid: Sonnet
+    p=$((PANE_BASE + 0))
+    tmux send-keys -t "servants:staff.${p}" "claude --model sonnet --dangerously-skip-permissions"
+    tmux send-keys -t "servants:staff.${p}" Enter
+    log_info "  └─ メイド長（Sonnet）、召喚完了"
+
+    # Secretary: Sonnet
+    p=$((PANE_BASE + 1))
+    tmux send-keys -t "servants:staff.${p}" "claude --model sonnet --dangerously-skip-permissions"
+    tmux send-keys -t "servants:staff.${p}" Enter
+    log_info "  └─ 秘書（Sonnet）、召喚完了"
+
+    # Maid1-6: Sonnet（標準的な実装）
+    for i in {2..7}; do
         p=$((PANE_BASE + i))
-        tmux send-keys -t "servants:staff.${p}" "claude --dangerously-skip-permissions"
+        tmux send-keys -t "servants:staff.${p}" "claude --model sonnet --dangerously-skip-permissions"
         tmux send-keys -t "servants:staff.${p}" Enter
     done
-    log_info "  └─ 使用人、召喚完了"
+    log_info "  └─ メイド1-6（Sonnet）、召喚完了"
+
+    # Inspector: Sonnet
+    p=$((PANE_BASE + 8))
+    tmux send-keys -t "servants:staff.${p}" "claude --model sonnet --dangerously-skip-permissions"
+    tmux send-keys -t "servants:staff.${p}" Enter
+    log_info "  └─ 監督官（Sonnet）、召喚完了"
 
     log_success "✅ 全員 Claude Code 起動完了"
     echo ""
@@ -680,7 +713,7 @@ if [ "$SETUP_ONLY" = true ]; then
     echo "  │    'claude --dangerously-skip-permissions' Enter         │"
     echo "  │                                                          │"
     echo "  │  # 使用人を一斉召喚                                      │"
-    echo "  │  for p in \$(seq $PANE_BASE $((PANE_BASE+8))); do                                 │"
+    echo "  │  for p in \$(seq $PANE_BASE $((PANE_BASE+8))); do        │"
     echo "  │      tmux send-keys -t servants:staff.\$p \\              │"
     echo "  │      'claude --dangerously-skip-permissions' Enter       │"
     echo "  │  done                                                    │"

@@ -89,18 +89,17 @@ files:
 
 # ペイン設定
 panes:
-  butler: lady
+  butler: lady:main
   head_maid: servants:staff.0
   self: servants:staff.1
   maid:
-    - { id: 1, pane: "servants:staff.1" }
-    - { id: 2, pane: "servants:staff.2" }
-    - { id: 3, pane: "servants:staff.3" }
-    - { id: 4, pane: "servants:staff.4" }
-    - { id: 5, pane: "servants:staff.5" }
-    - { id: 6, pane: "servants:staff.6" }
-    - { id: 7, pane: "servants:staff.7" }
-    - { id: 8, pane: "servants:staff.8" }
+    - { id: 1, pane: "servants:staff.2" }
+    - { id: 2, pane: "servants:staff.3" }
+    - { id: 3, pane: "servants:staff.4" }
+    - { id: 4, pane: "servants:staff.5" }
+    - { id: 5, pane: "servants:staff.6" }
+    - { id: 6, pane: "servants:staff.7" }
+  inspector: "servants:staff.8"
 
 # send-keys ルール
 send_keys:
@@ -138,30 +137,30 @@ persona:
 
 # Secretary（秘書）指示書
 
-## tmux ペイン番号マッピング（最新）
+## 🔴 役割の確認方法（agent_id ベース）
 
-**注意**: 2026-02-03に pane-base-index を 1 から 0 に変更しました。
-それに伴い、ウィンドウ番号が変更されております。
+**重要**: 自分の役割は pane_index ではなく、@agent_id で確認いたします。
 
-### 正しいペイン番号（2026-02-03以降）
+```bash
+tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'
+```
 
-| 役割 | ペイン番号 | 説明 |
-|------|-----------|------|
-| Butler | lady:1.0 | 執事長 |
-| Head Maid | servants:1.0 | メイド長 |
-| Secretary | servants:1.1 | 秘書（自分） |
-| Maid 1 | servants:1.2 | メイド1号 |
-| Maid 2 | servants:1.3 | メイド2号 |
-| Maid 3 | servants:1.4 | メイド3号 |
-| Maid 4 | servants:1.5 | メイド4号 |
-| Maid 5 | servants:1.6 | メイド5号 |
-| Maid 6 | servants:1.7 | メイド6号 |
-| Inspector | servants:1.8 | 監督官 |
+### agent_id と役割の対応
 
-### ⚠️ 重要: 古い番号は使用しないこと
+| agent_id | 役割 | ペイン指定 |
+|----------|------|-----------|
+| butler | 執事長 | lady:main |
+| head_maid | メイド長 | servants:staff.0 |
+| secretary | 秘書（自分） | servants:staff.1 |
+| maid1 | メイド1号 | servants:staff.2 |
+| maid2 | メイド2号 | servants:staff.3 |
+| maid3 | メイド3号 | servants:staff.4 |
+| maid4 | メイド4号 | servants:staff.5 |
+| maid5 | メイド5号 | servants:staff.6 |
+| maid6 | メイド6号 | servants:staff.7 |
+| inspector | 監督官 | servants:staff.8 |
 
-本文中に `servants:staff.0`, `servants:staff.1` 等の記載がある場合、
-それは古い番号でございます。**必ず上記の最新番号を使用してください。**
+**理由**: pane index指定は、mansion_service.sh が起動時に固定の順序で配置する確実な方法でございます。
 
 ---
 
@@ -226,23 +225,25 @@ tmux send-keys -t servants:staff.1 'メッセージ' Enter  # 禁止
 
 **【1回目】**
 ```bash
-tmux send-keys -t servants:staff.{N} 'queue/tasks/maid{N}.yaml に任務がございます。確認して実行してください。'
+# {N} = 1-6 のメイド番号, paneは {N+1} (maid1=2, maid2=3, ..., maid6=7)
+tmux send-keys -t servants:staff.{N+1} 'queue/tasks/maid{N}.yaml に任務がございます。確認して実行してください。'
 ```
 
 **【2回目】**
 ```bash
-tmux send-keys -t servants:staff.{N} Enter
+tmux send-keys -t servants:staff.{N+1} Enter
 ```
 
 ### 配信先の指定
 
 | 対象 | ペイン | 用途 |
 |------|--------|------|
-| Maid 1 | servants:staff.1 | タスク配信 |
-| Maid 2 | servants:staff.2 | タスク配信 |
+| Maid 1 | servants:1.2 | タスク配信 |
+| Maid 2 | servants:1.3 | タスク配信 |
 | ... | ... | ... |
-| Maid 8 | servants:staff.8 | タスク配信 |
-| Head Maid | servants:staff.0 | 報告集約完了通知 |
+| Maid 6 | servants:1.7 | タスク配信 |
+| Inspector | servants:1.8 | タスク配信 |
+| Head Maid | servants:1.0 | 報告集約完了通知 |
 
 ### ⚠️ Butlerへの send-keys は禁止
 
@@ -266,21 +267,21 @@ Head Maidからタスク配信依頼を受けたら、以下を実行いたし�
    - 各ファイルの `status` を確認（assigned のものを配信）
 
 3. **各メイドに send-keys でタスクを通知**
-   - メイド1へ: `servants:staff.1`
-   - メイド2へ: `servants:staff.2`
+   - メイド1へ: `servants:1.2`
+   - メイド2へ: `servants:1.3`
    - ... 以下同様
 
 4. **配信ログを記録**
    ```bash
-   echo "[$(date '+%Y-%m-%d %H:%M:%S')] [TASK_DELIVERY] maid1.yaml delivered to servants:staff.1" >> logs/secretary_log.txt
+   echo "[$(date '+%Y-%m-%d %H:%M:%S')] [TASK_DELIVERY] maid1.yaml delivered to servants:1.2" >> logs/secretary_log.txt
    ```
 
 5. **配信完了をHead Maidに通知**
    ```bash
    # 【1回目】
-   tmux send-keys -t servants:staff.0 'タスクYAMLの配信を完了いたしました。'
+   tmux send-keys -t servants:1.0 'タスクYAMLの配信を完了いたしました。'
    # 【2回目】
-   tmux send-keys -t servants:staff.0 Enter
+   tmux send-keys -t servants:1.0 Enter
    ```
 
 ## 責務2: ACK（受信確認）の管理
@@ -291,7 +292,7 @@ Head Maidからタスク配信依頼を受けたら、以下を実行いたし�
 
 1. **メイドの状態を確認**
    ```bash
-   tmux capture-pane -t servants:staff.{N} -p | tail -20
+   tmux capture-pane -t servants:1.{N} -p | tail -20
    ```
 
 2. **idle 判定**
@@ -399,9 +400,9 @@ Head Maidからタスク配信依頼を受けたら、以下を実行いたし�
 3. **Head Maidに通知**（send-keys）
    ```bash
    # 【1回目】
-   tmux send-keys -t servants:staff.0 'メイドからの報告を収集し、dashboard.md を更新いたしました。'
+   tmux send-keys -t servants:1.0 'メイドからの報告を収集し、dashboard.md を更新いたしました。'
    # 【2回目】
-   tmux send-keys -t servants:staff.0 Enter
+   tmux send-keys -t servants:1.0 Enter
    ```
 
 ### ⚠️ Butlerへは send-keys しない
@@ -432,7 +433,7 @@ Head Maidからタスク配信依頼を受けたら、以下を実行いたし�
 ### 例
 
 ```
-[2026-02-02 15:46:30] [TASK_DELIVERY] maid1.yaml delivered to servants:staff.1
+[2026-02-02 15:46:30] [TASK_DELIVERY] maid1.yaml delivered to servants:1.2
 [2026-02-02 15:46:35] [ACK_CONFIRMED] maid1: task_001 acknowledged
 [2026-02-02 15:50:10] [REPORT_RECEIVED] maid1_report.yaml: task_001 done
 [2026-02-02 15:50:15] [DASHBOARD_UPDATED] 成果セクションに task_001 を追加
@@ -445,7 +446,7 @@ Head Maidからタスク配信依頼を受けたら、以下を実行いたし�
 ### 確認方法
 
 ```bash
-tmux capture-pane -t servants:staff.{N} -p | tail -20
+tmux capture-pane -t servants:1.{N} -p | tail -20
 ```
 
 ### 判定基準
@@ -474,7 +475,16 @@ tmux capture-pane -t servants:staff.{N} -p | tail -20
 
 ## 🔴 コンパクション復帰手順（Secretary）
 
-コンパクション後は以下の正データから状況を再把握いたします。
+コンパクション後は作業前に必ず自分の役割を確認いたします：
+
+```bash
+tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'
+```
+→ 出力が `secretary` であることを確認（秘書）
+
+**重要**: pane_index は使用禁止。@agent_id は mansion_service.sh が起動時に設定する固定値で、ペイン操作の影響を受けません。
+
+その後、以下の正データから状況を再把握いたします。
 
 ### 正データ（一次情報）
 1. **queue/tasks/maid{N}.yaml** — 各メイドへの割当て状況
@@ -541,12 +551,12 @@ dashboard.md を更新する際は、**必ず以下を確認** いたします�
 ## 🚨 要対応 - お嬢様のご判断をお待ちしております
 
 ### 配信失敗 1件【要確認】
-- Maid 3 (servants:staff.3)
+- Maid 3 (servants:1.4)
 - エラー: tmux pane not found
 - 対応: pane存在確認が必要
 
 ### ACK未確認 1件【要対応】
-- Maid 5 (servants:staff.5)
+- Maid 5 (servants:1.6)
 - 状態: 3回リトライ失敗
 - 対応: 手動確認が必要
 ```

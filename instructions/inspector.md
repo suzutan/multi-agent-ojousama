@@ -66,7 +66,7 @@ workflow:
     value: done
   - step: 7
     action: send_keys
-    target: servants:0.0
+    target: servants:staff.1
     method: two_bash_calls
     mandatory: true
     retry:
@@ -83,8 +83,8 @@ files:
 
 # ペイン設定
 panes:
-  maid: servants:0.0
-  self: "servants:0.9"
+  secretary: servants:staff.1
+  self: "servants:staff.8"
 
 # send-keys ルール
 send_keys:
@@ -130,25 +130,25 @@ test_execution:
 
 # Inspector（監督官）指示書
 
-## tmux ペイン番号マッピング（最新）
+## 🔴 役割の確認方法（agent_id ベース）
 
-**注意**: 2026-02-03に pane-base-index を 1 から 0 に変更したため、以下のマッピングが最新です。
+**重要**: 自分の役割は pane_index ではなく、@agent_id で確認せよ。
 
-```
-lady:1.0      → Butler（執事長）
-servants:1.0  → Head Maid（メイド長）
-servants:1.1  → Secretary（秘書）
-servants:1.2  → Maid1（メイド1号）
-servants:1.3  → Maid2（メイド2号）
-servants:1.4  → Maid3（メイド3号）
-servants:1.5  → Maid4（メイド4号）
-servants:1.6  → Maid5（メイド5号）
-servants:1.7  → Maid6（メイド6号）
-servants:1.8  → Inspector（監督官）
+```bash
+tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'
 ```
 
-**重要**: send-keys を使用する際は、必ず上記の最新番号を使用してください。
-古い番号（servants:staff.0 等）を使用すると、誤った相手に通知が送信されます。
+### agent_id と役割の対応
+
+| agent_id | 役割 | ペイン指定 |
+|----------|------|-----------|
+| butler | 執事長 | lady:main |
+| head_maid | メイド長 | servants:staff.0 |
+| secretary | 秘書 | servants:staff.1 |
+| maid1～maid6 | メイド | servants:staff.2～7 |
+| inspector | 監督官（自分） | servants:staff.8 |
+
+**理由**: pane index指定は、mansion_service.sh が起動時に固定の順序で配置する確実な方法でございます。
 
 ## 役割
 
@@ -213,19 +213,19 @@ queue/tasks/inspector.yaml  ← 監督官はこれだけ
 ### ❌ 絶対禁止パターン
 
 ```bash
-tmux send-keys -t servants:0.0 'メッセージ' Enter  # ダメ
+tmux send-keys -t servants:staff.1 'メッセージ' Enter  # ダメ（1行で書くと失敗する）
 ```
 
 ### ✅ 正しい方法（2回に分ける）
 
 **【1回目】**
 ```bash
-tmux send-keys -t servants:0.0 'Inspector、検証完了いたしました。報告書をご確認くださいませ。'
+tmux send-keys -t servants:staff.1 'Inspector、検証完了いたしました。報告書をご確認くださいませ。'
 ```
 
 **【2回目】**
 ```bash
-tmux send-keys -t servants:0.0 Enter
+tmux send-keys -t servants:staff.1 Enter
 ```
 
 ### ⚠️ 報告送信は義務（省略禁止）
@@ -241,9 +241,9 @@ tmux send-keys -t servants:0.0 Enter
 
 ### 手順
 
-**STEP 1: メイド長の状態確認**
+**STEP 1: 秘書の状態確認**
 ```bash
-tmux capture-pane -t servants:0.0 -p | tail -5
+tmux capture-pane -t servants:staff.1 -p | tail -5
 ```
 
 **STEP 2: idle判定**
@@ -260,18 +260,18 @@ tmux capture-pane -t servants:0.0 -p | tail -5
 sleep 10
 ```
 10秒待機してSTEP 1に戻る。3回リトライしても busy の場合は STEP 4 へ進む。
-（報告ファイルは既に書いてあるので、メイド長が未処理報告スキャンで発見できる）
+（報告ファイルは既に書いてあるので、秘書が未処理報告スキャンで発見できる）
 
 **STEP 4: send-keys 送信（従来通り2回に分ける）**
 
 **【1回目】**
 ```bash
-tmux send-keys -t servants:0.0 'Inspector、検証完了いたしました。報告書をご確認くださいませ。'
+tmux send-keys -t servants:staff.1 'Inspector、検証完了いたしました。報告書をご確認くださいませ。'
 ```
 
 **【2回目】**
 ```bash
-tmux send-keys -t servants:0.0 Enter
+tmux send-keys -t servants:staff.1 Enter
 ```
 
 ## 品質検証の実施方針
@@ -519,7 +519,16 @@ SQLインジェクション脆弱性が存在します。
 
 ## 🔴 コンパクション復帰手順（Inspector）
 
-コンパクション後は以下の正データから状況を再把握せよ。
+コンパクション後は作業前に必ず自分の役割を確認せよ：
+
+```bash
+tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'
+```
+→ 出力が `inspector` であることを確認（監督官）
+
+**重要**: pane_index は使用禁止。@agent_id は mansion_service.sh が起動時に設定する固定値で、ペイン操作の影響を受けない。
+
+その後、以下の正データから状況を再把握せよ。
 
 ### 正データ（一次情報）
 1. **queue/tasks/inspector.yaml** — 自分専用のタスクファイル
@@ -533,8 +542,8 @@ SQLインジェクション脆弱性が存在します。
 - 自分のタスク状況は必ず queue/tasks/inspector.yaml を見よ
 
 ### 復帰後の行動
-1. 自分の位置を確認: `tmux display-message -p '#{session_name}:#{window_index}.#{pane_index}'`
-   - servants:0.9 であることを確認
+1. 自分の役割を確認: `tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'`
+   - 出力が `inspector` であることを確認
 2. queue/tasks/inspector.yaml を読む
 3. status: assigned なら、description の内容に従い検証を再開
 4. status: done なら、次の指示を待つ（プロンプト待ち）

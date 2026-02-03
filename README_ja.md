@@ -195,7 +195,7 @@ wsl --install
 - ✅ 次のステップ（`first_setup.sh` の実行方法）を案内
 
 ### `shutsujin_departure.sh` が行うこと：
-- ✅ tmuxセッションを作成（ojousama + servants）
+- ✅ tmuxセッションを作成（lady + servants）
 - ✅ 全エージェントでClaude Codeを起動
 - ✅ 各エージェントに指示書を自動読み込み
 - ✅ キューファイルをリセットして新しい状態に
@@ -229,12 +229,12 @@ wsl --install
 
 | エージェント | 役割 | 数 |
 |-------------|------|-----|
-| 🏯 執事長（Shogun） | 総大将 - あなたの命令を受ける | 1 |
-| 📋 メイド長（Karo） | 管理者 - タスクを分配 | 1 |
-| ⚔️ メイド（Ashigaru） | ワーカー - 並列でタスク実行 | 8 |
+| 🏛️ 執事長（Butler） | 統括責任者 - あなたの命令を受ける | 1 |
+| 📋 メイド長（Head Maid） | 管理者 - タスクを分配 | 1 |
+| 👔 メイド（Maid） | ワーカー - 並列でタスク実行 | 8 |
 
 tmuxセッションが作成されます：
-- `ojousama` - ここに接続してコマンドを出す
+- `lady` - ここに接続してコマンドを出す
 - `servants` - ワーカーがバックグラウンドで稼働
 
 ---
@@ -248,7 +248,7 @@ tmuxセッションが作成されます：
 新しいターミナルを開いて執事長に接続：
 
 ```bash
-tmux attach-session -t ojousama
+tmux attach-session -t lady
 ```
 
 ### Step 2: 最初の命令を出す
@@ -352,7 +352,7 @@ screenshot:
 
 | レイヤー | 場所 | 用途 |
 |---------|------|------|
-| Layer 1: Memory MCP | `memory/ojousama_memory.jsonl` | プロジェクト横断・セッションを跨ぐ長期記憶 |
+| Layer 1: Memory MCP | `memory/lady_memory.jsonl` | プロジェクト横断・セッションを跨ぐ長期記憶 |
 | Layer 2: Project | `config/projects.yaml`, `projects/<id>.yaml`, `context/{project}.md` | プロジェクト固有情報・技術知見 |
 | Layer 3: YAML Queue | `queue/butler_to_head_maid.yaml`, `queue/tasks/`, `queue/reports/` | タスク管理・指示と報告の正データ |
 | Layer 4: Session | CLAUDE.md, instructions/*.md | 作業中コンテキスト（/clearで破棄） |
@@ -523,7 +523,7 @@ claude mcp add sequential-thinking -- npx -y @modelcontextprotocol/server-sequen
 # 5. Memory - セッション間の長期記憶（推奨！）
 # ✅ first_setup.sh で自動設定済み
 # 手動で再設定する場合:
-claude mcp add memory -e MEMORY_FILE_PATH="$PWD/memory/ojousama_memory.jsonl" -- npx -y @modelcontextprotocol/server-memory
+claude mcp add memory -e MEMORY_FILE_PATH="$PWD/memory/lady_memory.jsonl" -- npx -y @modelcontextprotocol/server-memory
 ```
 
 ### インストール確認
@@ -612,7 +612,7 @@ language: en   # 日本語 + 英訳併記
 │  shutsujin_departure.sh                                             │
 │      │                                                              │
 │      ├──▶ tmuxセッションを作成                                       │
-│      │         • "ojousama"セッション（1ペイン）                        │
+│      │         • "lady"セッション（1ペイン）                        │
 │      │         • "servants"セッション（9ペイン、3x3グリッド）        │
 │      │                                                              │
 │      ├──▶ キューファイルとダッシュボードをリセット                     │
@@ -656,7 +656,7 @@ language: en   # 日本語 + 英訳併記
 **通常の毎日の使用：**
 ```bash
 ./shutsujin_departure.sh          # 全て起動
-tmux attach-session -t ojousama     # 接続してコマンドを出す
+tmux attach-session -t lady     # 接続してコマンドを出す
 ```
 
 **デバッグモード（手動制御）：**
@@ -664,14 +664,14 @@ tmux attach-session -t ojousama     # 接続してコマンドを出す
 ./shutsujin_departure.sh -s       # セッションのみ作成
 
 # 特定のエージェントでClaude Codeを手動起動
-tmux send-keys -t ojousama:0 'claude --dangerously-skip-permissions' Enter
+tmux send-keys -t lady:0 'claude --dangerously-skip-permissions' Enter
 tmux send-keys -t servants:0.0 'claude --dangerously-skip-permissions' Enter
 ```
 
 **クラッシュ後の再起動：**
 ```bash
 # 既存セッションを終了
-tmux kill-session -t ojousama
+tmux kill-session -t lady
 tmux kill-session -t servants
 
 # 新しく起動
@@ -686,7 +686,7 @@ tmux kill-session -t servants
 `first_setup.sh` を実行すると、以下のエイリアスが `~/.bashrc` に自動追加されます：
 
 ```bash
-alias css='tmux attach-session -t ojousama'      # 執事長ウィンドウの起動
+alias css='tmux attach-session -t lady'      # 執事長ウィンドウの起動
 alias csm='tmux attach-session -t servants'  # メイド長・メイドウィンドウの起動
 ```
 
@@ -711,7 +711,7 @@ multi-agent-ojousama/
 │  └────────────────────────────────────────────────────────────┘
 │
 ├── instructions/             # エージェント指示書
-│   ├── ojousama.md             # 執事長の指示書
+│   ├── butler.md             # 執事長の指示書
 │   ├── head_maid.md               # メイド長の指示書
 │   └── maid.md           # メイドの指示書
 │
@@ -830,7 +830,7 @@ tmux attach-session -t servants
 claude --model opus --dangerously-skip-permissions
 
 # 方法2: メイド長がrespawn-paneで強制再起動（ネストも解消される）
-tmux respawn-pane -t ojousama:0.0 -k 'claude --model opus --dangerously-skip-permissions'
+tmux respawn-pane -t lady:0.0 -k 'claude --model opus --dangerously-skip-permissions'
 ```
 
 **誤ってtmuxをネストしてしまった場合：**
@@ -846,11 +846,11 @@ tmux respawn-pane -t ojousama:0.0 -k 'claude --model opus --dangerously-skip-per
 
 | コマンド | 説明 |
 |----------|------|
-| `tmux attach -t ojousama` | 執事長に接続 |
+| `tmux attach -t lady` | 執事長に接続 |
 | `tmux attach -t servants` | ワーカーに接続 |
 | `Ctrl+B` の後 `0-8` | ペイン間を切り替え |
 | `Ctrl+B` の後 `d` | デタッチ（実行継続） |
-| `tmux kill-session -t ojousama` | 執事長セッションを停止 |
+| `tmux kill-session -t lady` | 執事長セッションを停止 |
 | `tmux kill-session -t servants` | ワーカーセッションを停止 |
 
 ### 🖱️ マウス操作
