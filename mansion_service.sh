@@ -13,9 +13,6 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# プロジェクト専用 tmux 設定ファイル
-PROJECT_TMUX_CONF="$SCRIPT_DIR/.tmux.conf"
-
 # 言語設定を読み取り（デフォルト: ja）
 LANG_SETTING="ja"
 if [ -f "./config/settings.yaml" ]; then
@@ -434,7 +431,7 @@ log_service "👔 執事長の執務室を構築中..."
 # lady セッションがなければ作る（-s 時もここで必ず lady が存在するようにする）
 # window 0 のみ作成し -n main で名前付け（第二 window にするとアタッチ時に空ペインが開くため 1 window に限定）
 if ! tmux has-session -t lady 2>/dev/null; then
-    tmux -f "$PROJECT_TMUX_CONF" new-session -d -s lady -n main
+    tmux new-session -d -s lady -n main
 fi
 
 # 執事長ペインはウィンドウ名 "main" で指定（base-index 1 環境でも動く）
@@ -461,7 +458,7 @@ PANE_BASE=$(tmux show-options -gv pane-base-index 2>/dev/null || echo 0)
 log_service "💼 使用人の控室を構築中（9名配備）..."
 
 # 最初のペイン作成
-if ! tmux -f "$PROJECT_TMUX_CONF" new-session -d -s servants -n "staff" 2>/dev/null; then
+if ! tmux new-session -d -s servants -n "staff" 2>/dev/null; then
     echo ""
     echo "  ╔════════════════════════════════════════════════════════════╗"
     echo "  ║  [ERROR] Failed to create tmux session 'servants'        ║"

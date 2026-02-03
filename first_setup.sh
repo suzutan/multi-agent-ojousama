@@ -155,24 +155,35 @@ else
 fi
 
 # ============================================================
-# STEP 3: プロジェクト専用 tmux 設定
+# STEP 3: tmux マウス設定
 # ============================================================
-log_step "STEP 3: プロジェクト専用 tmux 設定"
+log_step "STEP 3: tmux マウス設定"
 
-PROJECT_TMUX_CONF="$SCRIPT_DIR/.tmux.conf"
+TMUX_CONF="$HOME/.tmux.conf"
 
-if [ -f "$PROJECT_TMUX_CONF" ]; then
-    log_success "プロジェクト専用 tmux 設定ファイルが存在します: $PROJECT_TMUX_CONF"
+# マウス設定が既に存在するか確認
+if [ -f "$TMUX_CONF" ] && grep -q "set -g mouse on" "$TMUX_CONF" 2>/dev/null; then
+    log_info "tmux マウス設定は既に ~/.tmux.conf に存在します"
 else
-    log_warn "プロジェクト専用 tmux 設定ファイルが見つかりません"
-    log_info "標準の .tmux.conf をコピーまたは手動で作成してください"
-    RESULTS+=("tmux 設定: 警告（設定ファイル未作成）")
+    log_info "tmux マウス設定を ~/.tmux.conf に追加中..."
+    echo "" >> "$TMUX_CONF"
+    echo "# multi-agent-ojousama: マウススクロール有効化" >> "$TMUX_CONF"
+    echo "set -g mouse on" >> "$TMUX_CONF"
+    log_success "マウス設定を追加しました"
+
+    # tmux が起動中なら設定を再読み込み
+    if tmux list-sessions &>/dev/null; then
+        if tmux source-file "$TMUX_CONF" 2>/dev/null; then
+            log_success "tmux 設定を再読み込みしました"
+        else
+            log_warn "tmux 設定の再読み込みに失敗しました。次回起動時に反映されます"
+        fi
+    else
+        log_info "tmux は起動していません。次回起動時に設定が反映されます"
+    fi
 fi
 
-log_info "注: グローバルな ~/.tmux.conf は変更されません"
-log_info "    このプロジェクトは専用の .tmux.conf を使用します"
-
-RESULTS+=("tmux 設定: OK（プロジェクト専用）")
+RESULTS+=("tmux 設定: OK")
 
 # ============================================================
 # STEP 4: Node.js チェック
