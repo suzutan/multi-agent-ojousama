@@ -262,6 +262,20 @@ language: en   # Manor-style Japanese + English translation
 | Maid 1–4 | Sonnet | Enabled |
 | Maid 5–8 | Opus | Enabled |
 
+### Codex API (optional)
+
+For cost optimization, you can use Codex API instead of Anthropic's API:
+
+| Agent | Codex Model | Notes |
+|-------|-------------|-------|
+| Butler | gpt-5.2-pro | Strategic planning |
+| Head Maid | gpt-5.2-pro | Task distribution |
+| Secretary | gpt-5.1-codex-mini | Coordination (cost-optimized) |
+| Maid 1–6 | gpt-5.2-codex | Implementation |
+| Inspector | gpt-5.2-pro | Quality assurance |
+
+Set `api_provider: codex` in `config/settings.yaml` to enable Codex mode.
+
 ### MCP servers
 
 ```bash

@@ -26,7 +26,7 @@ if [ -f "./config/settings.yaml" ]; then
 fi
 
 # API Provider 設定を読み取り（デフォルト: anthropic）
-# bedrock: 全員Sonnet、anthropic: shogun方式（一部Opus）
+# bedrock: 全員Sonnet、anthropic: shogun方式、codex: gpt-5.2系
 API_PROVIDER="anthropic"
 if [ -f "./config/settings.yaml" ]; then
     API_PROVIDER=$(grep "^api_provider:" ./config/settings.yaml 2>/dev/null | awk '{print $2}' || echo "anthropic")
@@ -90,12 +90,18 @@ generate_prompt() {
 # ═══════════════════════════════════════════════════════════════════════════════
 # オプション解析
 # ═══════════════════════════════════════════════════════════════════════════════
+# AI_PROVIDER のデフォルト値（claude または codex）
+AI_PROVIDER="claude"
 SETUP_ONLY=false
 OPEN_TERMINAL=false
 SHELL_OVERRIDE=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
+        claude|codex)
+            AI_PROVIDER="$1"
+            shift
+            ;;
         -s|--setup-only)
             SETUP_ONLY=true
             shift
@@ -117,10 +123,14 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "🏛️ multi-agent-mansion 勤務開始スクリプト"
             echo ""
-            echo "使用方法: ./mansion_service.sh [オプション]"
+            echo "使用方法: ./mansion_service.sh [claude|codex] [オプション]"
+            echo ""
+            echo "引数:"
+            echo "  claude              Claude で起動（デフォルト）"
+            echo "  codex               OpenAI Codex で起動"
             echo ""
             echo "オプション:"
-            echo "  -s, --setup-only    tmuxセッションのセットアップのみ（Claude起動なし）"
+            echo "  -s, --setup-only    tmuxセッションのセットアップのみ（起動なし）"
             echo "  -t, --terminal      Windows Terminal で新しいタブを開く"
             echo "  -shell, --shell SH  シェルを指定（bash または zsh）"
             echo "                      未指定時は config/settings.yaml の設定を使用"
@@ -128,7 +138,8 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "例:"
             echo "  ./mansion_service.sh              # 全エージェント起動（通常の勤務開始）"
-            echo "  ./mansion_service.sh -s           # セットアップのみ（手動でClaude起動）"
+            echo "  ./mansion_service.sh codex        # Codex で起動"
+            echo "  ./mansion_service.sh -s           # セットアップのみ（手動で起動）"
             echo "  ./mansion_service.sh -t           # 全エージェント起動 + ターミナルタブ展開"
             echo "  ./mansion_service.sh -shell bash  # bash用プロンプトで起動"
             echo "  ./mansion_service.sh -shell zsh   # zsh用プロンプトで起動"
@@ -546,15 +557,26 @@ echo ""
 # STEP 6: Claude Code 起動（-s / --setup-only のときはスキップ）
 # ═══════════════════════════════════════════════════════════════════════════════
 if [ "$SETUP_ONLY" = false ]; then
-    # Claude Code CLI の存在チェック
-    if ! command -v claude &> /dev/null; then
-        log_info "⚠️  claude コマンドが見つかりません"
+    # AI Provider に応じて起動コマンドを決定
+    if [ "$AI_PROVIDER" = "codex" ]; then
+        # Codex の場合（仮のコマンド例）
+        CLAUDE_CMD="codex"
+        log_info "  └─ AI Provider: Codex"
+    else
+        # Claude の場合（デフォルト）
+        CLAUDE_CMD="claude"
+        log_info "  └─ AI Provider: Claude"
+    fi
+
+    # CLI の存在チェック
+    if ! command -v "$CLAUDE_CMD" &> /dev/null; then
+        log_info "⚠️  $CLAUDE_CMD コマンドが見つかりません"
         echo "  first_setup.sh を再実行してください:"
         echo "    ./first_setup.sh"
         exit 1
     fi
 
-    log_service "👔 全員に Claude Code を召喚中..."
+    log_service "👔 全員に $CLAUDE_CMD を召喚中..."
     log_info "  └─ API Provider: $API_PROVIDER"
 
     # API Provider に応じてモデルを決定
@@ -565,6 +587,15 @@ if [ "$SETUP_ONLY" = false ]; then
         SECRETARY_CLI_MODEL="$MODEL_HAIKU"
         MAID_CLI_MODEL="$MODEL_SONNET"
         INSPECTOR_CLI_MODEL="$MODEL_SONNET"
+    elif [ "$API_PROVIDER" = "codex" ]; then
+        # codex: 提案されたモデル割り当て
+        # 認証: 環境変数 OPENAI_CODEX_API_KEY
+        # エンドポイント: Claude Codeと同じ（Anthropic標準）
+        BUTLER_CLI_MODEL="gpt-5.2-pro"
+        HEAD_MAID_CLI_MODEL="gpt-5.2-pro"
+        SECRETARY_CLI_MODEL="gpt-5.1-codex-mini"
+        MAID_CLI_MODEL="gpt-5.2-codex"
+        INSPECTOR_CLI_MODEL="gpt-5.2-pro"
     else
         # anthropic: shogun方式（エイリアス使用）
         BUTLER_CLI_MODEL="opus"
@@ -575,7 +606,7 @@ if [ "$SETUP_ONLY" = false ]; then
     fi
 
     # 執事長
-    tmux send-keys -t lady:main "claude --model $BUTLER_CLI_MODEL --dangerously-skip-permissions"
+    tmux send-keys -t lady:main "$CLAUDE_CMD --model $BUTLER_CLI_MODEL --dangerously-skip-permissions"
     tmux send-keys -t lady:main Enter
     log_info "  └─ 執事長（${BUTLER_CLI_MODEL}）、召喚完了"
 
@@ -584,27 +615,27 @@ if [ "$SETUP_ONLY" = false ]; then
 
     # Head Maid
     p=$((PANE_BASE + 0))
-    tmux send-keys -t "servants:staff.${p}" "claude --model $HEAD_MAID_CLI_MODEL --dangerously-skip-permissions"
+    tmux send-keys -t "servants:staff.${p}" "$CLAUDE_CMD --model $HEAD_MAID_CLI_MODEL --dangerously-skip-permissions"
     tmux send-keys -t "servants:staff.${p}" Enter
     log_info "  └─ メイド長（${HEAD_MAID_CLI_MODEL}）、召喚完了"
 
     # Secretary
     p=$((PANE_BASE + 1))
-    tmux send-keys -t "servants:staff.${p}" "claude --model $SECRETARY_CLI_MODEL --dangerously-skip-permissions"
+    tmux send-keys -t "servants:staff.${p}" "$CLAUDE_CMD --model $SECRETARY_CLI_MODEL --dangerously-skip-permissions"
     tmux send-keys -t "servants:staff.${p}" Enter
     log_info "  └─ 秘書（${SECRETARY_CLI_MODEL}）、召喚完了"
 
     # Maid1-6
     for i in {2..7}; do
         p=$((PANE_BASE + i))
-        tmux send-keys -t "servants:staff.${p}" "claude --model $MAID_CLI_MODEL --dangerously-skip-permissions"
+        tmux send-keys -t "servants:staff.${p}" "$CLAUDE_CMD --model $MAID_CLI_MODEL --dangerously-skip-permissions"
         tmux send-keys -t "servants:staff.${p}" Enter
     done
     log_info "  └─ メイド1-6（${MAID_CLI_MODEL}）、召喚完了"
 
     # Inspector
     p=$((PANE_BASE + 8))
-    tmux send-keys -t "servants:staff.${p}" "claude --model $INSPECTOR_CLI_MODEL --dangerously-skip-permissions"
+    tmux send-keys -t "servants:staff.${p}" "$CLAUDE_CMD --model $INSPECTOR_CLI_MODEL --dangerously-skip-permissions"
     tmux send-keys -t "servants:staff.${p}" Enter
     log_info "  └─ 監督官（${INSPECTOR_CLI_MODEL}）、召喚完了"
 

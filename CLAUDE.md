@@ -384,16 +384,17 @@ config/settings.yaml の `api_provider` でモデル構成が切り替わる：
 ```yaml
 # bedrock: AWS Bedrock API（全員Sonnet）
 # anthropic: Anthropic API（shogun方式: 一部Opus）
+# codex: Codex API（gpt-5.2系）
 api_provider: anthropic
 ```
 
-| ロール | anthropic | bedrock |
-|--------|-----------|---------|
-| 執事長（Butler） | Opus | Sonnet |
-| メイド長（Head Maid） | Opus | Sonnet |
-| 秘書（Secretary） | Haiku | Sonnet |
-| メイド（Maid1-6） | Sonnet | Sonnet |
-| 監督官（Inspector） | Opus | Sonnet |
+| ロール | anthropic | bedrock | codex |
+|--------|-----------|---------|-------|
+| 執事長（Butler） | Opus | Sonnet | gpt-5.2-pro |
+| メイド長（Head Maid） | Opus | Sonnet | gpt-5.2-pro |
+| 秘書（Secretary） | Haiku | Sonnet | gpt-5.1-codex-mini |
+| メイド（Maid1-6） | Sonnet | Sonnet | gpt-5.2-codex |
+| 監督官（Inspector） | Opus | Sonnet | gpt-5.2-pro |
 
 ### ladyセッション（1ペイン）
 - Pane 0: BUTLER（執事長）
