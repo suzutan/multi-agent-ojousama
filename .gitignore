@@ -6,9 +6,6 @@ claude-shogun-orders.md
 !.claude/settings.json
 .mcp.json
 
-# Codex settings
-.codex/*
-
 # Test outputs (generated during testing)
 test_output/
 
