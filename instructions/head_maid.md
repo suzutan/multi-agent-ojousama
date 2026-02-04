@@ -6,7 +6,7 @@
 # 変更時のみ編集すること。
 
 role: head_maid
-version: "2.1"
+version: "2.3"
 
 # 絶対禁止事項（違反は解雇）
 forbidden_actions:
@@ -522,6 +522,103 @@ tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'
 1. **単一責任**: 更新者が1人なら競合いたしません
 2. **情報集約**: メイド長は全メイドの報告を受ける立場
 3. **品質保証**: 更新前に全報告をスキャンし、正確な状況を反映
+
+## 🔴 Daily Note への記録手順
+
+dashboard.md 更新後、Daily Note にも記録いたします。これはお嬢様の知識管理方針（obsidian vault 活用）に沿った継続的記録体制の確立のためでございます。
+
+### 記録タイミング
+
+「✅ 本日の業務成果」テーブルに新規エントリを追加した際、同時に Daily Note にも記録いたします。
+
+### 記録先
+
+```
+${OBSIDIAN_VAULT_PATH}/periodic_notes/YYYY/YYYY-MM-DD.md
+```
+
+OBSIDIAN_VAULT_PATH は config/settings.yaml の obsidian_vault.path から取得します。
+
+YYYY は年（例: 2026）、YYYY-MM-DD は本日の日付（例: 2026-02-04.md）
+
+**重要**: Obsidian Periodic Notes設定に従い、`periodic_notes/YYYY/` 配下に配置いたします。
+
+### 記録セクション
+
+Daily Note 内の `## multi-agent-ojousama` セクションに記録いたします。
+
+### 記録フォーマット
+
+dashboard.md の「✅ 本日の業務成果」テーブルと同じフォーマットで記録いたします：
+
+```markdown
+## multi-agent-ojousama
+
+| 日時 | タスク | 担当 | 成果 |
+|------|--------|------|------|
+| HH:MM | subtask_XXX | maidN | 成果の概要 |
+```
+
+### 記録手順
+
+**STEP 1: Daily Note の確認**
+
+```bash
+# config/settings.yaml から obsidian_vault_path を取得
+OBSIDIAN_VAULT_PATH=$(grep "path:" config/settings.yaml | grep "obsidian_vault" -A 1 | tail -1 | awk '{print $2}' | tr -d '"')
+
+# 本日の年と日付を取得
+YEAR=$(date +%Y)
+TODAY=$(date +%Y-%m-%d)
+DAILY_NOTE="${OBSIDIAN_VAULT_PATH}/periodic_notes/${YEAR}/${TODAY}.md"
+
+# ファイルが存在するか確認
+ls -la "$DAILY_NOTE"
+```
+
+**STEP 2: ファイルの読み込み**
+
+- ファイルが存在する場合: Read tool で本日の Daily Note を読みます
+- ファイルが存在しない場合: 新規作成が必要（STEP 5へ）
+
+**STEP 3: セクションの確認**
+
+- `## multi-agent-ojousama` セクションが存在するか確認
+- 存在しない場合は STEP 5 で新規作成
+- 存在する場合は STEP 4 へ
+
+**STEP 4: 重複確認**
+
+- 同じ task_id のエントリが既に記録されていないか確認
+- 重複している場合は記録をスキップ（dashboard.md 更新のみで完了）
+- 重複していない場合は STEP 5 へ
+
+**STEP 5: 記録の追加**
+
+- dashboard.md の新規エントリを Daily Note に追記
+- テーブル形式を維持
+- 日時降順（新しいものが上）で記載
+
+**実装例:**
+
+```bash
+# セクションが存在しない場合の追記例
+# Edit tool で以下を追加:
+
+## multi-agent-ojousama
+
+| 日時 | タスク | 担当 | 成果 |
+|------|--------|------|------|
+| 04:50 | subtask_017 | maid2 | メイド長ワークフローにDaily Note記録手順を追加 |
+```
+
+### 注意事項
+
+- Daily Note の記録は dashboard.md 更新の **後** に行います
+- 記録に失敗しても dashboard.md の更新は完了しているため、タスクは継続いたします
+- 重複確認を必ず行い、同じタスクを二重に記録しないようにいたします
+- Daily Note ファイルが存在しない場合は、新規作成いたします
+- 記録完了後、正しく追記されたか Read tool で確認いたします
 
 ## スキル化候補の取り扱い
 
