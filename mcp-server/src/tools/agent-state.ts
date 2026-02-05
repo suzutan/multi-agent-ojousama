@@ -56,80 +56,32 @@ export class AgentStateManager {
   }
 
   /**
-   * Get agent state (NO CACHING - always fresh)
-   *
-   * Strategy: YAML first, tmux fallback
-   * 1. Read agent_states.yaml
-   * 2. If found and recent (<30s), use YAML
-   * 3. Otherwise, detect from tmux and update YAML
-   *
-   * This design:
-   * - Reduces context pressure (agents don't write YAML repeatedly)
-   * - Maintains persistence (state survives MCP restart)
-   * - Keeps tmux as backup detection
+   * Get agent state from YAML
+   * Agents are responsible for updating their status via update_agent_state
    */
   async getAgentState(agentId: AgentId): Promise<AgentState | null> {
-    // Get agent config
     const agentConfig = this.agents[agentId];
     if (!agentConfig) {
       return null;
     }
 
-    // Read agent_states.yaml
     const statesYaml = await this.readAgentStatesYaml();
     const yamlState = statesYaml.agents[agentId];
 
-    let detectedStatus: AgentStatus;
-    let detectedBy: 'yaml' | 'tmux';
+    // Get status from YAML (default: idle)
+    const status: AgentStatus = yamlState?.status || 'idle';
 
-    // Check if YAML state is recent (<30 seconds)
-    if (yamlState) {
-      const lastUpdate = new Date(yamlState.last_update);
-      const now = new Date();
-      const ageSec = (now.getTime() - lastUpdate.getTime()) / 1000;
-
-      if (ageSec < 30) {
-        // YAML state is recent - use it
-        detectedStatus = yamlState.status;
-        detectedBy = 'yaml';
-      } else {
-        // YAML state is stale - detect from tmux and update YAML
-        const tmuxStatus = await this.tmuxClient.getAgentStatus(agentConfig.pane_target);
-        if (!tmuxStatus) {
-          return null;
-        }
-        detectedStatus = tmuxStatus.status;
-        detectedBy = 'tmux';
-
-        // Update YAML with fresh tmux detection
-        await this.updateAgentState(agentId, detectedStatus);
-      }
-    } else {
-      // No YAML state - detect from tmux and create YAML entry
-      const tmuxStatus = await this.tmuxClient.getAgentStatus(agentConfig.pane_target);
-      if (!tmuxStatus) {
-        return null;
-      }
-      detectedStatus = tmuxStatus.status;
-      detectedBy = 'tmux';
-
-      // Update YAML with fresh tmux detection
-      await this.updateAgentState(agentId, detectedStatus);
-    }
-
-    // Get current task from YAML (real-time, no cache)
+    // Get current task
     const taskFile = `${this.queueDir}/tasks/${agentId}.yaml`;
     const task = await this.yamlCache.get<Task>(taskFile);
 
-    const state: AgentState = {
+    return {
       agent_id: agentId,
-      status: detectedStatus,
+      status,
       current_task: task || null,
-      last_update: new Date().toISOString(),
-      detected_by: detectedBy,
+      last_update: yamlState?.last_update || new Date().toISOString(),
+      detected_by: 'yaml',
     };
-
-    return state;
   }
 
   /**

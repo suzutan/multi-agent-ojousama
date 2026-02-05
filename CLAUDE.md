@@ -495,9 +495,8 @@ mcp__ojousama__get_agent_state({ agent_id: "maid1" })
 **11個の専用ツール**：
 
 1. **mcp__ojousama__get_agent_state**: 特定エージェントの状態取得（idle/busy + 現在のタスク）
-   - 戦略: YAML優先（<30秒）、tmuxフォールバック
-   - 置き換え: `tmux display-message` + `tmux capture-pane`
-   - 主要利用者: メイド長、秘書
+   - データソース: queue/agent_states.yaml（エージェントがupdate_agent_stateで更新）
+   - 主要利用者: 執事長、メイド長、秘書
 
 2. **mcp__ojousama__list_all_agents**: 全エージェントの一括状態確認（フィルタ機能付き）
    - 主要利用者: メイド長（タスク割り当て前）
@@ -544,7 +543,7 @@ mcp__ojousama__get_agent_state({ agent_id: "maid1" })
 
 **重要な原則**：
 - MCPは「状態の観察と最小限の書き込み」に特化
-- **Agent状態**: YAML優先（<30秒）、tmuxフォールバック、永続化（`queue/agent_states.yaml`）
+- **Agent状態**: YAML優先（<30秒）、永続化（`queue/agent_states.yaml`）
 - **Tasks/Reports**: キャッシュなし、常にYAMLから最新データを読む（stale cache回避）
 - 命令送信は実績のあるtmux send-keysを継続
 - 実データはYAML（永続化）、MCPが死んでもstateは揮発しない
@@ -573,8 +572,12 @@ mcp__ojousama__get_agent_state({ agent_id: "maid1" })
 - 執事長・メイド長は dashboard.md を読んで状況を把握
 
 ### 4. メイド長の状態確認
-- 指示前にメイド長が処理中か確認: `tmux capture-pane -t servants:staff.0 -p | tail -20`
-- "thinking", "Effecting…" 等が表示中なら待機
+- 指示前にメイド長が処理中か確認: MCP経由で確認
+  ```
+  ToolSearch("select:mcp__ojousama__get_agent_state")
+  mcp__ojousama__get_agent_state({ agent_id: "head_maid" })
+  ```
+- status が "busy" なら待機、"idle" なら指示を送る
 
 ### 5. スクリーンショットの場所
 - お嬢様のスクリーンショット: config/settings.yaml の `screenshot.path` を参照

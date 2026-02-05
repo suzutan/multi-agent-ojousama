@@ -17,15 +17,6 @@ export interface TmuxResult {
 }
 
 /**
- * Agent status from tmux capture-pane
- */
-export interface TmuxAgentStatus {
-  agent_id: AgentId;
-  status: AgentStatus;
-  raw_output: string;
-}
-
-/**
  * Tmux configuration
  */
 interface TmuxConfig {
@@ -80,73 +71,6 @@ export class TmuxClient {
 
       return agentId as AgentId;
     } catch (error) {
-      return null;
-    }
-  }
-
-  /**
-   * Capture pane output
-   */
-  async capturePane(paneTarget: string, lines: number = 20): Promise<string> {
-    const result = await this.exec([
-      'capture-pane',
-      '-t',
-      paneTarget,
-      '-p',
-    ]);
-
-    // Return last N lines
-    const allLines = result.stdout.split('\n');
-    const lastLines = allLines.slice(-lines);
-    return lastLines.join('\n');
-  }
-
-  /**
-   * Detect agent status from capture-pane output
-   */
-  detectStatus(output: string): AgentStatus {
-    // Check busy patterns first
-    for (const pattern of this.config.busyPatterns) {
-      if (output.includes(pattern)) {
-        return 'busy';
-      }
-    }
-
-    // Check idle patterns
-    for (const pattern of this.config.idlePatterns) {
-      if (output.includes(pattern)) {
-        return 'idle';
-      }
-    }
-
-    // Default to busy if uncertain
-    return 'busy';
-  }
-
-  /**
-   * Get agent status
-   */
-  async getAgentStatus(paneTarget: string): Promise<TmuxAgentStatus | null> {
-    try {
-      // Get agent ID
-      const agentId = await this.getAgentId(paneTarget);
-      if (!agentId) {
-        return null;
-      }
-
-      // Capture pane output
-      const output = await this.capturePane(paneTarget);
-
-      // Detect status
-      const status = this.detectStatus(output);
-
-      return {
-        agent_id: agentId,
-        status,
-        raw_output: output,
-      };
-    } catch (error) {
-      console.error(`Failed to get agent status for ${paneTarget}:`, error);
       return null;
     }
   }
