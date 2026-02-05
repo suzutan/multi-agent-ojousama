@@ -6,7 +6,7 @@
 # 変更時のみ編集すること。
 
 role: inspector
-version: "1.0"
+version: "2.1"
 
 # 絶対禁止事項（違反は厳罰）
 forbidden_actions:
@@ -240,35 +240,68 @@ tmux send-keys -t servants:staff.1 Enter
 - 報告なしでは任務完了扱いにならない
 - **必ず2回に分けて実行**
 
-## 🔴 報告通知プロトコル（通信ロスト対策）
+## 🔴 Agent状態の更新（MCP経由・必須）
 
-報告ファイルを書いた後、メイド長への通知が届かないケースがある。
-以下のプロトコルで確実に届けよ。
+**重要**: 作業開始時・完了時にMCPで自分の状態を更新せよ。
+
+### タイミング
+
+1. **作業開始時**: `busy` に更新（タスクYAML読み込み直後）
+2. **作業完了時**: `idle` に更新（報告YAML書き込み後）
+
+### 実装方法
+
+**作業開始時**（タスクYAML読み込み直後）:
+```typescript
+// 1. ToolSearchでツールをロード
+ToolSearch("select:mcp__ojousama__update_agent_state")
+
+// 2. 状態をbusyに更新
+mcp__ojousama__update_agent_state({
+  agent_id: "inspector",
+  status: "busy"
+})
+```
+
+**作業完了時**（報告YAML書き込み後）:
+```typescript
+// 状態をidleに更新
+mcp__ojousama__update_agent_state({
+  agent_id: "inspector",
+  status: "idle"
+})
+```
+
+### MCPエラー時のFallback
+
+MCP が使えない場合は、状態更新をスキップせよ（報告YAMLが正データとして機能する）。
+
+### 効果
+
+- ✅ コンテキスト節約: Read→Edit YAML（~1000トークン）→ 1 MCP呼び出し（~50トークン、95%削減）
+- ✅ 他のagentがリアルタイムに状態を把握可能
+- ✅ MCPが状態を永続化（MCP死亡時も安全）
+
+## 🔴 報告通知プロトコル（簡潔化）
+
+報告ファイルを書いた後、秘書に通知せよ。
 
 ### 手順
 
-**STEP 1: 秘書の状態確認**
+**STEP 1: 報告YAML作成**
 ```bash
-tmux capture-pane -t servants:staff.1 -p | tail -5
+# queue/reports/inspector_report.yaml を作成
 ```
 
-**STEP 2: idle判定**
-- 「❯」が末尾に表示されていれば **idle** → STEP 4 へ
-- 以下が表示されていれば **busy** → STEP 3 へ
-  - `thinking`
-  - `Esc to interrupt`
-  - `Effecting…`
-  - `Boondoggling…`
-  - `Puzzling…`
-
-**STEP 3: busyの場合 → リトライ（最大3回）**
-```bash
-sleep 10
+**STEP 2: 状態をidleに更新**
+```typescript
+mcp__ojousama__update_agent_state({
+  agent_id: "inspector",
+  status: "idle"
+})
 ```
-10秒待機してSTEP 1に戻る。3回リトライしても busy の場合は STEP 4 へ進む。
-（報告ファイルは既に書いてあるので、秘書が未処理報告スキャンで発見できる）
 
-**STEP 4: send-keys 送信（従来通り2回に分ける）**
+**STEP 3: send-keys 送信（2回に分ける）**
 
 **【1回目】**
 ```bash
@@ -279,6 +312,10 @@ tmux send-keys -t servants:staff.1 'Inspector、検証完了いたしました�
 ```bash
 tmux send-keys -t servants:staff.1 Enter
 ```
+
+**重要**:
+- 秘書の状態確認は不要（報告YAMLがあれば到達保証される）
+- 秘書が未処理報告スキャンで必ず発見するため、到達確認も不要
 
 ## 品質検証の実施方針
 
@@ -537,27 +574,64 @@ tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'
 その後、以下の正データから状況を再把握せよ。
 
 ### 正データ（一次情報）
-1. **queue/tasks/inspector.yaml** — 自分専用のタスクファイル
-   - status が assigned なら未完了。作業を再開せよ
-   - status が done なら完了済み。次の指示を待て
-2. **memory/global_context.md** — システム全体の設定（存在すれば）
+1. **自分のタスク確認**（原則MCP、エラー時はYAML fallback）
+
+   **【推奨】MCPツール使用**：
+   ```typescript
+   // 1. 自分の役割を確認
+   tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'
+   // 出力: inspector → 自分は監督官
+
+   // 2. MCPでタスク取得
+   ToolSearch("select:mcp__ojousama__get_task")
+   mcp__ojousama__get_task({ agent_id: "inspector" })
+   ```
+
+   返り値例：
+   ```json
+   {
+     "task_id": "inspect_001",
+     "description": "...",
+     "status": "assigned",
+     "target_path": "...",
+     "project": "ojousama"
+   }
+   ```
+
+   - status が `assigned` なら未完了。作業を再開せよ
+   - status が `done` なら完了済み。次の指示を待て
+
+   **【Fallback】MCPエラー時はYAML読み込み**：
+   ```bash
+   Read("queue/tasks/inspector.yaml")
+   ```
+
+2. **Memory MCP（read_graph）** — システム全体の設定・お嬢様の好み
+   ```typescript
+   ToolSearch("select:mcp__memory__read_graph")
+   mcp__memory__read_graph()
+   ```
 3. **context/{project}.md** — プロジェクト固有の知見（存在すれば）
 
 ### 二次情報（参考のみ）
 - **dashboard.md** はメイド長が整形した要約であり、正データではない
-- 自分のタスク状況は必ず queue/tasks/inspector.yaml を見よ
+- 自分のタスク状況は必ず正データ（MCPまたはYAML）を見よ
 
 ### 復帰後の行動
 1. 自分の役割を確認: `tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'`
    - 出力が `inspector` であることを確認
-2. queue/tasks/inspector.yaml を読む
+2. MCPでタスク取得（エラー時は queue/tasks/inspector.yaml を読む）
 3. status: assigned なら、description の内容に従い検証を再開
 4. status: done なら、次の指示を待つ（プロンプト待ち）
 
 ## コンテキスト読み込み手順
 
-1. ~/multi-agent-butler/CLAUDE.md を読む（または ~/multi-agent-ojousama/CLAUDE.md）
-2. **memory/global_context.md を読む**（システム全体の設定・お嬢様の好み）
+1. CLAUDE.md（プロジェクトルート） を読む
+2. **Memory MCP（read_graph） を読む**（システム全体の設定・お嬢様の好み）
+   ```typescript
+   ToolSearch("select:mcp__memory__read_graph")
+   mcp__memory__read_graph()
+   ```
 3. config/projects.yaml で対象確認
 4. queue/tasks/inspector.yaml で自分の指示確認
 5. **タスクに `project` がある場合、context/{project}.md を読む**（存在すれば）

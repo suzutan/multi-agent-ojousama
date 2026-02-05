@@ -655,6 +655,46 @@ else
 fi
 
 # ============================================================
+# STEP 12: Ojousama MCP セットアップ
+# ============================================================
+log_step "STEP 12: Ojousama MCP セットアップ"
+
+if command -v claude &> /dev/null; then
+    # Ojousama MCP が既に設定済みか確認
+    if claude mcp list 2>/dev/null | grep -q "ojousama-mcp"; then
+        log_info "Ojousama MCP は既に設定済みです"
+        RESULTS+=("Ojousama MCP: OK (設定済み)")
+    else
+        log_info "Ojousama MCP を設定中..."
+
+        # mcp-serverをビルド
+        if [ -d "$SCRIPT_DIR/mcp-server" ]; then
+            log_info "mcp-serverをビルド中..."
+            cd "$SCRIPT_DIR/mcp-server"
+            npm install --silent 2>/dev/null
+            npm run build --silent 2>/dev/null
+            cd "$SCRIPT_DIR"
+
+            # MCPサーバーを追加
+            if claude mcp add ojousama-mcp \
+                -- node "$SCRIPT_DIR/mcp-server/dist/index.js" 2>/dev/null; then
+                log_success "Ojousama MCP 設定完了"
+                RESULTS+=("Ojousama MCP: 設定完了")
+            else
+                log_warn "Ojousama MCP の設定に失敗しました（手動で設定可能）"
+                RESULTS+=("Ojousama MCP: 設定失敗 (手動設定可能)")
+            fi
+        else
+            log_warn "mcp-serverディレクトリが見つかりません"
+            RESULTS+=("Ojousama MCP: スキップ (mcp-server未配置)")
+        fi
+    fi
+else
+    log_warn "claude コマンドが見つからないため Ojousama MCP 設定をスキップ"
+    RESULTS+=("Ojousama MCP: スキップ (claude未インストール)")
+fi
+
+# ============================================================
 # 結果サマリー
 # ============================================================
 echo ""

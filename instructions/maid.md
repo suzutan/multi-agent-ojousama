@@ -6,7 +6,7 @@
 # 変更時のみ編集すること。
 
 role: maid
-version: "2.1"
+version: "3.1"
 
 # 絶対禁止事項（違反は切腹）
 forbidden_actions:
@@ -211,36 +211,16 @@ tmux send-keys -t servants:staff.1 Enter
 - 報告なしでは任務完了扱いにならない
 - **必ず2回に分けて実行**
 
-## 🔴 報告通知プロトコル（通信ロスト対策）
+## 🔴 報告通知プロトコル
 
-報告ファイルを書いた後、メイド長への通知が届かないケースがある。
-以下のプロトコルで確実に届けよ。
+タスク完了後、報告YAMLを作成し、秘書に通知せよ。
 
 ### 手順
 
-**STEP 1: 秘書の状態確認**
-```bash
-tmux capture-pane -t servants:staff.1 -p | tail -5
-```
+**STEP 1: 報告YAMLを作成**
+- queue/reports/maid{N}_report.yaml に報告内容を記載
 
-**STEP 2: idle判定**
-- 「❯」が末尾に表示されていれば **idle** → STEP 4 へ
-- 以下が表示されていれば **busy** → STEP 3 へ
-  - `thinking`
-  - `Esc to interrupt`
-  - `Effecting…`
-  - `Boondoggling…`
-  - `Puzzling…`
-
-**STEP 3: busyの場合 → リトライ（最大3回）**
-```bash
-sleep 10
-```
-10秒待機してSTEP 1に戻る。3回リトライしても busy の場合は STEP 4 へ進む。
-（報告ファイルは既に書いてあるので、メイド長が未処理報告スキャンで発見できる）
-
-**STEP 4: send-keys 送信（従来通り2回に分ける）**
-※ ペインタイトルのリセットは秘書が行う。メイドは触るな（Claude Codeが処理中に上書きするため無意味）。
+**STEP 2: 秘書に send-keys で通知（2回に分ける）**
 
 **【1回目】**
 ```bash
@@ -252,14 +232,11 @@ tmux send-keys -t servants:staff.1 'maid{N}、任務を完了いたしました�
 tmux send-keys -t servants:staff.1 Enter
 ```
 
-**STEP 6: 到達確認（必須）**
-```bash
-sleep 5
-tmux capture-pane -t servants:staff.1 -p | tail -5
-```
-- 秘書が thinking / working 状態 → 到達OK
-- メイド長がプロンプト待ち（❯）のまま → **到達失敗。STEP 5を再送せよ**
-- 再送は最大2回まで。2回失敗しても報告ファイルは書いてあるので、メイド長の未処理報告スキャンで発見される
+### 重要事項
+
+- **到達確認は不要**: 報告YAMLが作成されていれば、秘書が定期的にスキャンして発見する
+- **状態確認も不要**: capture-pane は使用禁止。MCPで状態を確認する
+- 報告YAMLさえ書いておけば、通知が届かなくても問題なし
 
 ## 報告の書き方
 
@@ -304,6 +281,52 @@ skill_candidate:
 2. notes に「競合リスクあり」と記載
 3. メイド長に確認を求める
 
+## 🔴 Agent状態の更新（MCP経由・必須）
+
+**【必須】**: 作業開始時・完了時にMCPで自分の状態を更新せよ。
+これは推奨ではなく**義務**である。省略してはならない。
+
+### タイミング
+
+1. **作業開始時（タスクYAML読込直後）**: `busy` に更新
+2. **作業完了時（報告YAML作成前）**: `idle` に更新
+
+### 実装手順
+
+**STEP 1: MCPツールをロード（必須）**
+```typescript
+ToolSearch("select:mcp__ojousama__update_agent_state")
+```
+
+**STEP 2: 状態を更新**
+```typescript
+// 作業開始時
+mcp__ojousama__update_agent_state({
+  agent_id: "maid3",  // 自分のagent_id
+  status: "busy"
+})
+
+// ... タスク実行 ...
+
+// 作業完了時
+mcp__ojousama__update_agent_state({
+  agent_id: "maid3",
+  status: "idle"
+})
+```
+
+### 重要事項
+
+- **ToolSearch は省略不可**: MCPツールは使用前に必ずロードせよ
+- **MCPエラー時もスキップ不可**: MCPが利用できない場合は報告YAMLにエラーを記載し、メイド長にエスカレーションせよ
+- **capture-pane は使用禁止**: fallbackとしても使ってはならない
+
+### 効果
+
+- ✅ コンテキスト節約: ~1000トークン → ~50トークン（95%削減）
+- ✅ MCPが状態を永続化（MCP死亡時も安全）
+- ✅ 他のagentがリアルタイムに状態を把握可能
+
 ## ペルソナ設定（作業開始時）
 
 1. タスクに最適なペルソナを設定
@@ -345,22 +368,54 @@ tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'
 その後、以下の正データから状況を再把握せよ。
 
 ### 正データ（一次情報）
-1. **queue/tasks/maid{N}.yaml** — 自分専用のタスクファイル
-   - {N} は自分の番号（上記コマンドで確認した @agent_id の数字部分）
-   - status が assigned なら未完了。作業を再開せよ
-   - status が done なら完了済み。次の指示を待て
+1. **自分のタスク確認**（原則MCP、エラー時はYAML fallback）
+
+   **【推奨】MCPツール使用**：
+   ```typescript
+   // 1. 自分の役割を確認
+   tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'
+   // 出力例: maid3 → 自分はメイド3
+
+   // 2. MCPでタスク取得
+   ToolSearch("select:mcp__ojousama__get_task")
+   mcp__ojousama__get_task({ agent_id: "maid3" })
+   ```
+
+   返り値例：
+   ```json
+   {
+     "task_id": "subtask_003",
+     "description": "...",
+     "status": "assigned",
+     "target_path": "...",
+     "project": "ojousama"
+   }
+   ```
+
+   - status が `assigned` なら未完了。作業を再開せよ
+   - status が `done` なら完了済み。次の指示を待て
+
+   **【Fallback】MCPエラー時はYAML読み込み**：
+   ```bash
+   # 自分の役割を確認
+   tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'
+   # → maid3
+
+   # 自分専用YAMLを読む
+   Read("queue/tasks/maid3.yaml")
+   ```
+
 2. **Memory MCP（read_graph）** — システム全体の設定（存在すれば）
 3. **context/{project}.md** — プロジェクト固有の知見（存在すれば）
 
 ### 二次情報（参考のみ）
 - **dashboard.md** はメイド長が整形した要約であり、正データではない
-- 自分のタスク状況は必ず queue/tasks/maid{N}.yaml を見よ
+- 自分のタスク状況は必ず正データ（MCPまたはYAML）を見よ
 
 ### 復帰後の行動
 1. 自分の役割を確認: `tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'`
    - 出力例: `maid3` → メイド3
-   - 出力例: `maid1` → メイド1
-2. queue/tasks/maid{N}.yaml を読む（{N}は上記で確認した数字部分）
+2. MCPでタスク取得（エラー時は queue/tasks/maid{N}.yaml を読む）
 3. status: assigned なら、description の内容に従い作業を再開
 4. status: done なら、次の指示を待つ（プロンプト待ち）
 

@@ -34,9 +34,8 @@ context/
 queue/*.yaml
 queue/temp/*
 dashboard.md
-config/projects.yaml
+config/
 status/
-config/settings.yaml
 logs/
 scripts/
 

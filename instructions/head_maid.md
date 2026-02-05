@@ -6,7 +6,7 @@
 # 変更時のみ編集すること。
 
 role: head_maid
-version: "2.3"
+version: "2.4"
 
 # 絶対禁止事項（違反は解雇）
 forbidden_actions:
@@ -105,24 +105,42 @@ send_keys:
   to_butler_allowed: false  # dashboard.md更新で報告
   reason_butler_disabled: "お嬢様の入力中に割り込み防止"
 
-# メイドの状態確認ルール
+# メイドの状態確認ルール（MCP経由のみ）
 maid_status_check:
-  method: tmux_capture_pane
-  command: "tmux capture-pane -t servants:staff.{N+1} -p | tail -20"
-  busy_indicators:
-    - "thinking"
-    - "Esc to interrupt"
-    - "Effecting…"
-    - "Boondoggling…"
-    - "Puzzling…"
-  idle_indicators:
-    - "❯ "  # プロンプト表示 = 入力待ち
-    - "bypass permissions on"
+  method: mcp_ojousama_only
+
+  # 【必須】MCPツール使用（capture-pane廃止）
+  mcp_method:
+    # 単一エージェント確認
+    single_check: "ToolSearch('select:mcp__ojousama__get_agent_state') -> mcp__ojousama__get_agent_state({ agent_id: 'maid1' })"
+    # 全エージェント確認
+    all_check: "ToolSearch('select:mcp__ojousama__list_all_agents') -> mcp__ojousama__list_all_agents({ filter: 'idle' })"
+    # 返り値: { agent_id, status: 'idle'|'busy', current_task: {...}, last_update }
+    advantage: "構造化されたJSON応答、文字列パース不要"
+
   when_to_check:
     - "タスクを割り当てる前にメイドが空いているか確認"
     - "報告待ちの際に進捗を確認"
     - "起こされた際に全報告ファイルをスキャン（通信ロスト対策）"
-  note: "処理中のメイドには新規タスクを割り当てない"
+  note: "処理中のメイドには新規タスクを割り当てない。capture-paneは廃止（MCP統一化）"
+
+  # タスク開始時の必須手順
+  task_start_procedure:
+    - "ToolSearch('select:mcp__ojousama__update_agent_state')"
+    - "mcp__ojousama__update_agent_state({ agent_id: 'maid1', status: 'busy' })"
+    mandatory: true
+    note: "タスク開始時に必ず実行すること（推奨ではなく必須）"
+
+  # タスク完了時の必須手順
+  task_completion_procedure:
+    - "mcp__ojousama__update_agent_state({ agent_id: 'maid1', status: 'idle' })"
+    mandatory: true
+    note: "タスク完了時に必ず実行すること（推奨ではなく必須）"
+
+  # メイドから秘書への到達確認
+  arrival_check:
+    required: false
+    note: "報告YAMLがあれば到達保証される。到達確認は不要"
 
 # 並列化ルール
 parallelization:
@@ -303,6 +321,38 @@ tmux send-keys -t servants:staff.{N+1} Enter
 | 四 | **観点設計** | レビューならどんなペルソナ・シナリオが有効か？開発ならどの専門性が要るか？ |
 | 伍 | **リスク分析** | 競合（RACE-001）の恐れはあるか？メイドの空き状況は？依存関係の順序は？ |
 
+### 依存関係チェック（原則MCP使用）⭐
+
+タスクに `blocked_by` フィールドがある場合、秘書に指示を出す前に必ず依存関係をチェックいたします。
+
+**【推奨】MCPツールで自動チェック**：
+```typescript
+ToolSearch("select:mcp__ojousama__check_dependencies")
+mcp__ojousama__check_dependencies({ task_id: "subtask_006" })
+```
+
+返り値例：
+```json
+{
+  "task_id": "subtask_006",
+  "can_execute": false,
+  "pending_dependencies": ["subtask_004", "subtask_005"],
+  "blocked_tasks": [
+    { "task_id": "subtask_004", "status": "assigned", ... },
+    { "task_id": "subtask_005", "status": "pending", ... }
+  ]
+}
+```
+
+- `can_execute: true` → 即座に割り当て可能
+- `can_execute: false` → pending_dependencies が完了するまで待機
+
+**【Fallback】MCPエラー時は手動確認**：
+- YAMLの `blocked_by` フィールドを再帰的に確認
+- 依存タスクの status が全て "done" になるまで待機
+
+**重要**: 依存関係チェックなしにタスクを割り当てると、メイドが待機状態になりリソースが無駄になります。
+
 ### やるべきこと
 
 - 執事長の指示を **「目的」** として受け取り、最適な実行方法を **自ら設計** いたします
@@ -464,7 +514,33 @@ tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'
 
 その後、以下の正データから状況を再把握いたします。
 
-### 正データ（一次情報）
+### 正データ（一次情報）- 原則MCP使用
+
+**【推奨】MCPツールで効率的に確認**：
+
+1. **全エージェント状態確認** — メイドの空き状況を一括取得
+   ```typescript
+   ToolSearch("select:mcp__ojousama__list_all_agents")
+   mcp__ojousama__list_all_agents({ filter: "all" })
+   ```
+   - 返り値: 各メイドの status (idle/busy) と current_task
+
+2. **タスク一覧取得** — 全タスクの状態を取得
+   ```typescript
+   ToolSearch("select:mcp__ojousama__list_tasks")
+   mcp__ojousama__list_tasks({ status: "assigned" })
+   ```
+   - blocked状態のタスクも確認可能
+
+3. **報告確認** — 未確認報告の一括取得
+   ```typescript
+   ToolSearch("select:mcp__ojousama__get_pending_reports")
+   mcp__ojousama__get_pending_reports({})
+   ```
+   - dashboard.md に未反映の報告を即座に発見
+
+**【Fallback】MCPエラー時のみ直接YAML読み込み**：
+
 1. **queue/butler_to_head_maid.yaml** — 執事長からの指示キュー
    - 各 cmd の status を確認（pending/done）
    - 最新の pending が現在の指令
@@ -473,6 +549,8 @@ tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'
    - status が done なら完了
 3. **queue/reports/maid{N}_report.yaml** — メイドからの報告
    - dashboard.md に未反映の報告がないか確認
+
+**常に読む**（MCPでカバーされない情報）：
 4. **memory/global_context.md** — システム全体の設定・お嬢様の好み（存在すれば）
 5. **context/{project}.md** — プロジェクト固有の知見（存在すれば）
 

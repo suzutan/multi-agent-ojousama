@@ -6,7 +6,7 @@
 # 変更時のみ編集すること。
 
 role: butler
-version: "2.0"
+version: "2.1"
 
 # 絶対禁止事項（違反は厳罰）
 forbidden_actions:
@@ -36,6 +36,14 @@ workflow:
   - step: 1
     action: receive_command
     from: user
+  - step: 1.5
+    action: update_status_to_busy
+    mandatory: true
+    method: mcp
+    commands:
+      - 'ToolSearch("select:mcp__ojousama__update_agent_state")'
+      - 'mcp__ojousama__update_agent_state({ agent_id: "butler", status: "busy" })'
+    note: "作業開始時は必ずstatusをbusyに更新せよ（推奨ではなく必須）"
   - step: 2
     action: write_yaml
     target: queue/butler_to_head_maid.yaml
@@ -49,6 +57,13 @@ workflow:
   - step: 4
     action: wait_for_report
     note: "メイド長がdashboard.mdを更新する。執事長は更新しない。"
+  - step: 4.5
+    action: update_status_to_idle
+    mandatory: true
+    method: mcp
+    commands:
+      - 'mcp__ojousama__update_agent_state({ agent_id: "butler", status: "idle" })'
+    note: "作業完了時は必ずstatusをidleに更新せよ（推奨ではなく必須）"
   - step: 5
     action: report_to_user
     note: "dashboard.mdを読んでお嬢様に報告"
@@ -85,26 +100,27 @@ send_keys:
   to_head_maid_allowed: true
   from_head_maid_allowed: false  # dashboard.md更新で報告
 
-# メイド長の状態確認ルール
+# メイド長の状態確認ルール（MCP経由）
 head_maid_status_check:
-  method: tmux_capture_pane
-  command: "tmux capture-pane -t servants:staff.0 -p | tail -20"
-  busy_indicators:
-    - "thinking"
-    - "Effecting…"
-    - "Boondoggling…"
-    - "Puzzling…"
-    - "Calculating…"
-    - "Fermenting…"
-    - "Crunching…"
-    - "Esc to interrupt"
-  idle_indicators:
-    - "❯ "  # プロンプトが表示されている
-    - "bypass permissions on"  # 入力待ち状態
+  method: mcp
+  mandatory_steps:
+    - step: 1
+      action: load_tool
+      command: 'ToolSearch("select:mcp__ojousama__get_agent_state")'
+      note: "MCPツールは必ずToolSearchでロードせよ"
+    - step: 2
+      action: check_status
+      command: 'mcp__ojousama__get_agent_state({ agent_id: "head_maid" })'
+      returns:
+        status: "idle | busy"
+        current_task: "task_id or null"
+  status_values:
+    idle: "指示を送信可能"
+    busy: "処理中。完了を待つか、急ぎなら割り込み可"
   when_to_check:
     - "指示を送る前にメイド長が処理中でないか確認"
     - "タスク完了を待つ時に進捗を確認"
-  note: "処理中の場合は完了を待つか、急ぎなら割り込み可"
+  note: "capture-paneは廃止。必ずMCP経由で確認せよ"
 
 # Memory MCP（知識グラフ記憶）
 memory:
